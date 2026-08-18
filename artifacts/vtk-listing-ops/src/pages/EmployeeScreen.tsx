@@ -4,13 +4,12 @@ import { BatchProgress } from "../components/BatchProgress";
 import { ItemIdentityCard } from "../components/ItemIdentityCard";
 import { IncludedQuestionCard } from "../components/IncludedQuestionCard";
 import { ConditionSelector } from "../components/ConditionSelector";
-import { ConditionalField } from "../components/ConditionalField";
 import { StatusPanel } from "../components/StatusPanel";
 import { SaveNextButton } from "../components/SaveNextButton";
 import { SkipPanel } from "../components/SkipPanel";
 import { KeyboardHelpOverlay } from "../components/KeyboardHelpOverlay";
 import { MOCK_SCENARIOS, ConditionValue } from "../data/mockData";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Keyboard } from "lucide-react";
 
 export default function EmployeeScreen() {
   const [scenarioIndex, setScenarioIndex] = useState(0);
@@ -18,8 +17,8 @@ export default function EmployeeScreen() {
 
   const [selectedIncluded, setSelectedIncluded] = useState<Set<number>>(new Set(scenario.preSelectedIncluded));
   const [selectedCondition, setSelectedCondition] = useState<ConditionValue>(scenario.preSelectedCondition);
-  const [conditionalValues, setConditionalValues] = useState<Record<string, string>>({});
   const [employeeNotes, setEmployeeNotes] = useState("");
+  const [includedDecisionMade, setIncludedDecisionMade] = useState(false);
   
   const [showSkipPanel, setShowSkipPanel] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -30,16 +29,16 @@ export default function EmployeeScreen() {
   useEffect(() => {
     setSelectedIncluded(new Set(scenario.preSelectedIncluded));
     setSelectedCondition(scenario.preSelectedCondition);
-    setConditionalValues({});
     setEmployeeNotes("");
+    setIncludedDecisionMade(false);
     setShowSkipPanel(false);
     setValidationErrors(false);
   }, [scenarioIndex, scenario]);
 
   const totalQuestions = scenario.includedQuestions.length;
-  const isIncludedComplete = totalQuestions === 0 || true; // In real app, might require specific checks, here we just verify it exists
+  const isIncludedComplete = totalQuestions === 0 || selectedIncluded.size > 0 || includedDecisionMade;
   const isConditionComplete = !scenario.conditionRequired || selectedCondition !== null;
-  const isReady = isConditionComplete;
+  const isReady = isIncludedComplete && isConditionComplete;
 
   const toggleIncluded = (id: number) => {
     setSelectedIncluded(prev => {
@@ -48,6 +47,7 @@ export default function EmployeeScreen() {
       else next.add(id);
       return next;
     });
+    setIncludedDecisionMade(false); // reset none if they check something
   };
 
   const loadNextScenario = useCallback(() => {
@@ -77,7 +77,7 @@ export default function EmployeeScreen() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if typing in an input/textarea
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) {
         return;
       }
 
@@ -85,6 +85,12 @@ export default function EmployeeScreen() {
         setShowHelp(true);
         e.preventDefault();
         return;
+      }
+      
+      if (e.key === 'F2') { 
+        setShowSkipPanel(true); 
+        e.preventDefault(); 
+        return; 
       }
 
       if (showHelp || showSkipPanel || showSuccessToast) {
@@ -126,21 +132,20 @@ export default function EmployeeScreen() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [scenario, showHelp, showSkipPanel, showSuccessToast, handleSaveNext]);
 
-
   return (
     <div className="fixed inset-0 bg-gray-50 flex flex-col font-sans overflow-hidden">
       <AppHeader />
       <BatchProgress 
-        batchName="Batch 2024-08-18 AM" 
-        currentIndex={scenarioIndex + 1} 
-        totalItems={MOCK_SCENARIOS.length}
+        batchName="2026-08-18-Core-Switches" 
+        currentIndex={scenarioIndex === 0 ? 14 : scenarioIndex + 1} 
+        totalItems={31}
         onNext={loadNextScenario}
         onPrev={() => setScenarioIndex(prev => prev === 0 ? MOCK_SCENARIOS.length - 1 : prev - 1)}
       />
 
       {/* Success Toast */}
       {showSuccessToast && (
-        <div className="absolute top-28 left-1/2 -translate-x-1/2 z-50 bg-primary text-white px-6 py-3 rounded-md shadow-lg font-bold flex items-center gap-3 animate-in slide-in-from-top-4 fade-in">
+        <div className="absolute top-28 left-1/2 -translate-x-1/2 z-50 bg-emerald-700 text-white px-6 py-3 rounded-md shadow-lg font-bold flex items-center gap-3 animate-in slide-in-from-top-4 fade-in">
           <CheckCircle2 size={24} />
           Saved ✓ — Loading next item...
         </div>
@@ -150,21 +155,21 @@ export default function EmployeeScreen() {
       <main className="flex-1 flex overflow-hidden p-6 gap-6 max-w-[1920px] mx-auto w-full">
         
         {/* LEFT COLUMN: Identity (~20%) */}
-        <div className="w-[300px] xl:w-[350px] shrink-0 flex flex-col h-full bg-white border border-gray-200 rounded-lg p-6 shadow-sm overflow-y-auto">
+        <div className="w-[300px] xl:w-[350px] shrink-0 flex flex-col h-full bg-white border border-gray-200 rounded-lg p-6 shadow-sm min-h-0">
           <ItemIdentityCard {...scenario} />
         </div>
 
         {/* CENTER COLUMN: Verification (~50%) */}
-        <div className="flex-1 flex flex-col h-full bg-white border border-gray-200 rounded-lg p-8 shadow-sm overflow-y-auto">
+        <div className="flex-1 flex flex-col h-full bg-white border border-gray-200 rounded-lg p-5 shadow-sm min-h-0">
           
           {scenario.includedQuestions.length > 0 ? (
-            <div className="mb-10">
-              <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-900 tracking-tight">WHAT'S INCLUDED?</h2>
-                <p className="text-sm text-gray-500">Check all that apply.</p>
+            <div className="mb-4">
+              <div className="mb-4 flex items-baseline gap-2">
+                <h2 className="text-sm font-bold text-emerald-700 tracking-wide uppercase">WHAT'S INCLUDED?</h2>
+                <p className="text-xs text-gray-400">(Check all that apply)</p>
               </div>
               
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
                 {scenario.includedQuestions.map((item, idx) => (
                   <IncludedQuestionCard 
                     key={item.id}
@@ -176,15 +181,24 @@ export default function EmployeeScreen() {
                   />
                 ))}
               </div>
+              
+              {totalQuestions > 0 && selectedIncluded.size === 0 && !includedDecisionMade && (
+                <button 
+                  onClick={() => setIncludedDecisionMade(true)}
+                  className="border border-gray-300 text-gray-500 text-xs px-3 py-2 rounded-md hover:bg-gray-50 w-full mt-3 font-medium transition-colors"
+                >
+                  NONE OF THESE ARE INCLUDED
+                </button>
+              )}
             </div>
           ) : (
-            <div className="mb-10 p-6 bg-gray-50 border border-gray-200 rounded-md text-center text-gray-600">
+            <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-md text-center text-gray-600 text-sm">
               No inclusion verification required for this item.
             </div>
           )}
 
           {scenario.conditionRequired && (
-            <div className="mb-8">
+            <div className="mb-4 mt-auto">
               <ConditionSelector 
                 selected={selectedCondition} 
                 onSelect={setSelectedCondition}
@@ -193,38 +207,57 @@ export default function EmployeeScreen() {
             </div>
           )}
 
-          {scenario.conditionalField && (
-            <div className="mb-8">
-              <ConditionalField 
-                config={scenario.conditionalField}
-                value={conditionalValues[scenario.conditionalField.id] || ''}
-                onChange={(v) => setConditionalValues(prev => ({...prev, [scenario.conditionalField.id]: v}))}
+          <div className="flex gap-4 mt-auto pt-4 border-t border-gray-100">
+            <div className="flex flex-col gap-1 w-24 shrink-0">
+               <label className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">QTY TO LIST</label>
+               <div className="flex border border-gray-200 rounded-md overflow-hidden h-[34px]">
+                 <button className="w-8 hover:bg-gray-50 flex items-center justify-center text-gray-500 border-r border-gray-200">−</button>
+                 <div className="flex-1 flex items-center justify-center font-medium text-sm">1</div>
+                 <button className="w-8 hover:bg-gray-50 flex items-center justify-center text-gray-500 border-l border-gray-200">+</button>
+               </div>
+            </div>
+            
+            <div className="flex flex-col gap-1 w-32 shrink-0">
+               <label className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">CHECK COUNT?</label>
+               <select className="h-[34px] border border-gray-200 rounded-md text-sm px-2 focus:outline-none focus:ring-1 focus:ring-emerald-600 bg-white cursor-pointer text-gray-900">
+                 <option>TRUE</option>
+                 <option>FALSE</option>
+               </select>
+            </div>
+            
+            <div className="flex flex-col gap-1 w-24 shrink-0">
+               <label className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">STOCK TOTAL</label>
+               <div className="h-[34px] border border-gray-200 rounded-md text-sm px-3 flex items-center justify-center bg-white text-gray-900 font-medium">
+                 1
+               </div>
+            </div>
+
+            <div className="flex flex-col gap-1 flex-1">
+              <label className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">OTHER NOTES <span className="text-gray-400 normal-case font-normal">(optional)</span></label>
+              <textarea 
+                className="w-full px-3 py-1.5 border border-gray-200 rounded-md text-sm min-h-[34px] focus:outline-none focus:ring-1 focus:ring-emerald-600 resize-none bg-white placeholder:text-gray-300"
+                placeholder="e.g. minor scratches"
+                value={employeeNotes}
+                onChange={(e) => setEmployeeNotes(e.target.value)}
+                rows={1}
               />
             </div>
-          )}
-
-          <div className="mt-auto pt-6">
-            <label className="text-sm font-semibold text-gray-700 block mb-2">Employee Notes (Optional)</label>
-            <textarea 
-              className="w-full p-3 border border-gray-300 rounded-md text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-primary resize-none bg-gray-50"
-              placeholder="Add any additional details or issues found during physical inspection..."
-              value={employeeNotes}
-              onChange={(e) => setEmployeeNotes(e.target.value)}
-            />
           </div>
         </div>
 
         {/* RIGHT COLUMN: Actions (~30%) */}
-        <div className="w-[320px] xl:w-[400px] shrink-0 flex flex-col gap-6 h-full overflow-y-auto">
+        <div className="w-[320px] xl:w-[350px] shrink-0 flex flex-col gap-6 h-full min-h-0">
           
           <StatusPanel 
             inclusionComplete={isIncludedComplete}
             conditionComplete={isConditionComplete}
             conditionSelected={selectedCondition}
             isReady={isReady}
+            selectedCount={selectedIncluded.size}
+            totalQuestions={totalQuestions}
           />
 
-          <div className="flex flex-col gap-4 mt-auto">
+          <div className="flex flex-col gap-3 mt-auto">
             {validationErrors && (
               <div className="text-center text-destructive font-semibold text-sm animate-pulse">
                 Please complete required fields.
@@ -236,9 +269,10 @@ export default function EmployeeScreen() {
             {!showSkipPanel ? (
               <button 
                 onClick={() => setShowSkipPanel(true)}
-                className="w-full py-3 px-6 rounded-md font-bold text-gray-600 border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                className="w-full flex flex-col items-center justify-center py-3.5 px-6 rounded-md font-bold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors shadow-sm"
               >
-                SKIP / NEEDS REVIEW
+                <span>SKIP / NEEDS REVIEW</span>
+                <span className="text-xs font-normal text-gray-400 mt-0.5 tracking-wide">F2</span>
               </button>
             ) : (
               <SkipPanel 
@@ -252,18 +286,21 @@ export default function EmployeeScreen() {
       </main>
 
       {/* Keyboard Shortcut Strip */}
-      <div className="h-8 bg-gray-900 text-gray-400 text-xs flex items-center justify-center gap-6 font-mono tracking-wide shrink-0">
-        <span><kbd className="text-gray-200">1-9</kbd> Items</span>
-        <span>•</span>
-        <span><kbd className="text-gray-200">A/B/C/D</kbd> Condition</span>
-        <span>•</span>
-        <span><kbd className="text-gray-200">Enter</kbd> Save</span>
-        <span>•</span>
-        <span><kbd className="text-gray-200">S</kbd> Skip</span>
-        <span>•</span>
-        <button onClick={() => setShowHelp(true)} className="hover:text-white transition-colors cursor-pointer">
-          <kbd className="text-gray-200">?</kbd> Help
-        </button>
+      <div className="h-10 bg-gray-900 text-gray-400 text-xs flex items-center justify-center gap-8 shrink-0">
+        <div className="flex items-center gap-2 text-emerald-600 font-bold uppercase tracking-wider">
+          <Keyboard size={16} />
+          KEYBOARD SHORTCUTS
+        </div>
+        <div className="flex items-center gap-6">
+          <span><span className="text-gray-200">1-8</span> Select Items</span>
+          <span><span className="text-gray-200">A-D</span> Condition</span>
+          <span><span className="text-gray-200">Enter</span> Save & Next</span>
+          <span><span className="text-gray-200">S</span> Skip</span>
+          <span><span className="text-gray-200">F2</span> Needs Review</span>
+          <button onClick={() => setShowHelp(true)} className="hover:text-white transition-colors cursor-pointer flex items-center gap-1">
+            <span className="text-gray-200">F1</span> Help
+          </button>
+        </div>
       </div>
 
       <KeyboardHelpOverlay isOpen={showHelp} onClose={() => setShowHelp(false)} />

@@ -1,0 +1,630 @@
+Use the attached image as the PRIMARY VISUAL REFERENCE for the VTK Listing Operations Employee Work Screen.
+
+This is the approved design direction.
+
+IMPORTANT:
+Do NOT rebuild the project from scratch.
+Keep the existing React/component architecture and working prototype.
+Refine the current Employee Work Screen so it closely matches this visual direction while preserving the Phase 1 functional requirements already provided.
+
+The written Phase 1 requirements remain authoritative for behavior. This image is authoritative for the preferred visual direction.
+
+==================================================
+1. VISUAL DIRECTION
+==================================================
+
+Match the attached design's overall feel:
+
+- light white/off-white background
+- subtle green accent color
+- clean card-based layout
+- soft borders
+- minimal shadows
+- large readable controls
+- generous but efficient spacing
+- professional internal-business appearance
+- friendly enough for nontechnical employees
+- visually calm
+- no clutter
+
+Do not make the application look like:
+- an admin database
+- a spreadsheet
+- an AI chatbot
+- an eBay interface
+- a developer tool
+
+The employee should feel like they are completing a very simple inspection checklist.
+
+==================================================
+2. KEEP THE THREE-COLUMN EMPLOYEE LAYOUT
+==================================================
+
+LEFT:
+ITEM INFORMATION
+
+CENTER:
+WHAT'S INCLUDED?
+CONDITION
+conditional employee fields
+
+RIGHT:
+STATUS
+SAVE & NEXT
+SKIP / NEEDS REVIEW
+
+This general structure is approved.
+
+The center should receive the most horizontal space.
+
+The right action column should remain visible at all times.
+
+==================================================
+3. IMPORTANT: NO NORMAL SCROLLING
+==================================================
+
+The current implementation uses overflow-y-auto in several major employee-screen columns.
+
+That is not the desired normal behavior.
+
+Refactor the standard employee layout so normal items fit completely inside the viewport without scrolling at:
+
+1920x1080
+1600x900
+
+The employee should not need to scroll the:
+- Item panel
+- Question panel
+- Status/action panel
+
+for normal items.
+
+Scrolling should be an exceptional fallback for unusually complex records, not the standard layout mechanism.
+
+Test specifically with:
+- 1 Included question
+- 4 questions
+- 6 questions
+- 8 questions
+- 10 questions
+
+Optimize spacing/card height dynamically if necessary.
+
+==================================================
+4. ITEM INFORMATION PANEL
+==================================================
+
+Match the attached reference more closely.
+
+Show:
+
+ITEM INFORMATION
+
+Product image
+
+Large:
+Cisco C1111-4P
+
+Below:
+ISR 1111 4-Port
+Integrated Services Router
+
+Then compact metadata:
+
+MPN: C1111-4P
+SKU: VTK-C1111-4P-14
+
+Then a light informational card:
+
+“Please verify what is included with this item.”
+
+The Model / MPN must be one of the easiest things on the entire screen to see.
+
+==================================================
+5. WHAT'S INCLUDED CARDS
+==================================================
+
+Use large two-column checkbox cards similar to the reference.
+
+Example:
+
+[✓] 1  Power Cord
+[ ]  5  AC Adapter
+
+The entire card must be clickable.
+
+Selected cards should clearly show:
+- green checkbox
+- subtle selected background/border
+
+Unselected cards should remain clean and obvious.
+
+Do not make the controls look like tiny HTML checkboxes.
+
+Component number and component name should both be easy to scan.
+
+==================================================
+6. CRITICAL INCLUDED-ANSWER VALIDATION FIX
+==================================================
+
+The current EmployeeScreen implementation contains logic equivalent to:
+
+isIncludedComplete = totalQuestions === 0 || true
+
+That makes Included verification effectively always complete.
+
+Fix this.
+
+The employee must make an explicit Included decision when Included questions exist.
+
+However, checking zero boxes is a legitimate answer because NONE may be included.
+
+Therefore do NOT use:
+“at least one checkbox selected”
+as the completion rule.
+
+Instead introduce an explicit decision state.
+
+Recommended behavior:
+
+When Included questions exist, show a control such as:
+
+[ CONFIRM INCLUDED SELECTION ]
+
+or
+
+[ NONE OF THESE ARE INCLUDED ]
+
+A better UX may be:
+
+- Employee checks applicable components.
+- If one or more are selected, Included verification becomes complete after interaction/confirmation.
+- If none are included, employee explicitly selects:
+  NONE OF THESE
+
+The application must distinguish:
+
+UNANSWERED
+
+from
+
+ANSWERED — NONE INCLUDED
+
+This distinction is critical.
+
+Do not silently treat an untouched checklist as NONE.
+
+==================================================
+7. CONDITION DESIGN
+==================================================
+
+Match the four large cards in the reference:
+
+A
+NEW
+
+B
+NEW OPEN BOX
+
+C
+FACTORY SEALED
+
+D
+USED
+
+The selected card should use a strong green fill similar to the reference.
+
+A/B/C/D keyboard shortcuts should continue working.
+
+==================================================
+8. CONDITIONAL FIELDS
+==================================================
+
+At the bottom of the center card, show only fields required for the current item.
+
+Example:
+
+QTY TO LIST
+[-] 1 [+]
+
+CHECK COUNT?
+[ TRUE ▼ ]
+
+STOCK TOTAL
+[ 1 ]
+
+OTHER NOTES
+[ e.g. minor scratches ]
+
+Do NOT reserve blank spaces for fields that are not applicable.
+
+The layout should reflow intelligently.
+
+For New Bulk Lister items, price may also appear:
+
+FIXED PRICE
+[$ 69.99]
+
+For Repair workflow items, only show the relevant inventory verification controls.
+
+==================================================
+9. EMPLOYEE NOTES
+==================================================
+
+Do not use a large 80px+ textarea by default if it causes unnecessary scrolling.
+
+Use a compact one-line or two-line optional notes field.
+
+Expand it only if the employee begins entering a longer note.
+
+Employee Notes is secondary to the verification workflow.
+
+==================================================
+10. STATUS PANEL
+==================================================
+
+Match the attached reference.
+
+Show something like:
+
+STATUS
+
+3 of 8 selected
+
+Condition:
+Used (D)
+
+All required fields completed
+
+[✓ Ready to Save]
+
+Then:
+
+SAVE & NEXT
+
+and:
+
+SKIP / NEEDS REVIEW
+
+The employee should be able to look at this panel and immediately understand whether they can continue.
+
+==================================================
+11. SAVE & NEXT
+==================================================
+
+Make SAVE & NEXT the strongest visual action on the screen.
+
+Large green button.
+
+Keyboard:
+Enter
+
+When saved:
+- brief success feedback
+- no blocking modal
+- immediately load next item
+- reset keyboard focus
+- update Item X of Y
+- update progress
+
+The workflow should feel nearly instantaneous.
+
+==================================================
+12. SKIP / NEEDS REVIEW
+==================================================
+
+Keep this visually secondary.
+
+Shortcut:
+F2 or S
+
+Use a lightweight inline panel/popover for:
+
+- Cannot identify item
+- Cannot verify included components
+- Inventory does not match
+- Condition unclear
+- Damaged / unexpected item
+- Other
+
+Allow optional note.
+
+After confirmation:
+move to next item.
+
+==================================================
+13. KEYBOARD SHORTCUT BAR
+==================================================
+
+I like the keyboard shortcut bar in the attached design.
+
+Keep it.
+
+Use:
+
+1–9 = Included items
+0 = Included item 10
+A–D = Condition
+Enter = Save & Next
+S = Skip
+F2 = Needs Review
+F1 or ? = Help
+
+The shortcuts should never fire while typing inside a text field.
+
+==================================================
+14. EMPLOYEE SPEED TARGET
+==================================================
+
+Optimize the UI around this workflow:
+
+Employee sees item.
+
+Clicks:
+Power Cord
+Rack Mount Brackets
+Used
+
+Presses:
+Enter
+
+Next item appears.
+
+A normal item should take approximately:
+
+5–15 seconds.
+
+Every extra click should have a reason.
+
+==================================================
+15. DO NOT REQUIRE EMPLOYEE CONFIRMATION FOR THINGS
+THE SYSTEM ALREADY KNOWS
+==================================================
+
+If a field has already been reliably established by the system, do not ask the employee again.
+
+Examples:
+
+If Condition is already authoritative:
+do not ask Condition.
+
+If no inventory correction is required:
+do not show inventory verification.
+
+If no Other Question exists:
+do not show Other Answer.
+
+If Fixed Price was already supplied:
+show it read-only or omit employee editing depending on workflow.
+
+The employee should answer ONLY unresolved human-verification facts.
+
+==================================================
+16. DYNAMIC LAYOUT
+==================================================
+
+The screen must adapt cleanly.
+
+A listing with:
+
+2 Included questions + Condition
+
+should not have the same empty layout as:
+
+10 Included questions + Condition + Other Question.
+
+Use responsive card sizing and spacing.
+
+The page should always feel intentionally composed.
+
+==================================================
+17. NEW LISTING AND REPAIR WORKFLOWS
+==================================================
+
+Remember that this UI will eventually support two workflows:
+
+NEW LISTING BUILDER
+
+and
+
+LISTING QA & REPAIR
+
+Do not create two completely separate employee interfaces.
+
+Use the same Employee Work Screen and dynamically show the controls/questions required by the current workflow.
+
+Examples:
+
+NEW LISTING:
+Included
+Condition
+Lot Size
+Qty
+Stock
+Check Count
+Price
+
+REPAIR:
+Included verification
+Condition verification
+Inventory correction
+CF/Check Count correction
+Other verification
+
+The employee should not need to know which backend workflow engine is running.
+
+==================================================
+18. REVIEWER SCREEN
+==================================================
+
+Keep the reviewer interface visually related to this employee design.
+
+Reviewer can have greater information density.
+
+The reviewer should see:
+
+Item
+Employee Answers
+Research Summary
+eBay Category
+Item Specifics
+Title
+Character Count
+Description Summary
+QA Results
+SixBit Preview
+
+Actions:
+
+APPROVE & NEXT
+
+SEND BACK
+
+REJECT / NEEDS REVIEW
+
+Still target a one-screen normal approval workflow.
+
+==================================================
+19. DASHBOARD
+==================================================
+
+Keep the Dashboard clean and operational.
+
+Focus on:
+
+What needs work now?
+
+Suggested top cards:
+
+WAITING FOR EMPLOYEE
+
+NEEDS REVIEW
+
+READY FOR APPROVAL
+
+APPROVED TODAY
+
+Then show active batches.
+
+Do not build analytics-heavy dashboards yet.
+
+==================================================
+20. PRODUCT IMAGE
+==================================================
+
+For the prototype, mock images are acceptable.
+
+Design the ItemIdentityCard so later the application can receive:
+
+product_image_url
+
+or
+
+product_image_asset
+
+without changing the layout.
+
+Eventually the research workflow may supply a product-reference image.
+
+Do not implement that backend now.
+
+==================================================
+21. ACCESSIBILITY
+==================================================
+
+Maintain:
+
+large click targets
+keyboard focus indicators
+high contrast
+text labels in addition to colors
+logical tab order
+usable font sizes
+
+Do not rely on green/red alone.
+
+==================================================
+22. RESPONSIVE TESTING
+==================================================
+
+Test and capture screenshots at:
+
+1920x1080
+
+1600x900
+
+1366x768
+
+For 1920x1080 and 1600x900:
+
+Normal employee items MUST fit without vertical scrolling.
+
+At 1366x768:
+
+Use a compact layout first.
+Minor fallback scrolling is acceptable only if necessary.
+
+==================================================
+23. REQUIRED SAMPLE SCENARIOS
+==================================================
+
+Retain/test:
+
+Cisco C1111-4P
+
+Dell E1715S
+
+Topaz F-FL/90/50K/SF/BZ-87
+
+Zebra ZT231
+
+Inventory/repair issue
+
+Minimal-verification item
+
+Also verify the layout with:
+
+1 Included question
+4 Included questions
+6 Included questions
+8 Included questions
+10 Included questions
+
+==================================================
+24. DO NOT START BACKEND WORK
+==================================================
+
+This remains Phase 1 UI approval.
+
+Do not implement:
+
+OpenAI API
+ViaTeK Relay
+database
+authentication
+background workers
+SixBit generation
+eBay publishing
+
+until the UI refinement is approved.
+
+==================================================
+25. DELIVERABLE
+==================================================
+
+Refine the existing prototype.
+
+Do not restart it.
+
+Return:
+
+1. updated Employee Work Screen
+2. updated Reviewer Screen
+3. updated Dashboard
+4. screenshots at all three target resolutions
+5. confirmation that normal employee scenarios require no scrolling at 1920x1080 and 1600x900
+6. confirmation that Included NONE vs UNANSWERED is correctly distinguished
+7. list of files changed
+8. any design decisions requiring owner approval
+
+Then STOP for owner review.

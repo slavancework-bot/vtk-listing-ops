@@ -22,40 +22,38 @@ export function IncludedQuestionCard({
     <button
       onClick={onToggle}
       className={`
-        relative w-full flex items-center gap-4 p-4 text-left rounded-md transition-all duration-150
-        border-2 
+        relative w-full flex items-center gap-3 p-3 text-left rounded-md transition-all duration-150
+        border
         ${isSelected 
-          ? "border-primary bg-primary/5 shadow-sm" 
+          ? "border-emerald-600 bg-emerald-50/50" 
           : showError
             ? "border-destructive bg-destructive/5 animate-pulse"
-            : "border-gray-200 bg-white hover:border-primary/50 hover:bg-gray-50"
+            : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
         }
       `}
       data-testid={`btn-include-${item.id}`}
     >
       <div className={`
-        flex items-center justify-center w-6 h-6 rounded-full shrink-0 border
+        flex items-center justify-center w-5 h-5 rounded-sm border-2 shrink-0
         ${isSelected
-          ? "bg-primary border-primary text-white"
+          ? "bg-emerald-600 border-emerald-600 text-white"
           : "bg-white border-gray-300 text-transparent"
         }
       `}>
-        <Check size={14} strokeWidth={3} />
+        <Check size={12} strokeWidth={4} />
       </div>
       
-      <div className="flex flex-col flex-grow">
-        <span className={`font-medium ${isSelected ? "text-gray-900" : "text-gray-700"}`}>
+      <div className="flex items-center gap-2 flex-grow pr-6">
+        <span className="text-xs font-semibold text-gray-400 w-5 text-center shrink-0">
+          {index + 1}
+        </span>
+        <span className={`font-medium text-sm ${isSelected ? "text-gray-900" : "text-gray-700"}`}>
           {item.label}
         </span>
-        {item.important && (
-          <span className="text-xs font-semibold text-amber-600 uppercase tracking-wider mt-0.5">
-            Important Buyer Consideration
-          </span>
-        )}
       </div>
       
       {shortcutNumber !== null && (
-        <div className="absolute top-2 right-2 flex items-center justify-center w-5 h-5 rounded bg-gray-100 text-[10px] font-mono font-bold text-gray-400 border border-gray-200">
+        <div className="absolute top-3 right-3 flex items-center justify-center w-4 h-4 rounded bg-gray-100 text-[9px] font-mono font-bold text-gray-400 border border-gray-200 opacity-50">
           {shortcutNumber}
         </div>
       )}

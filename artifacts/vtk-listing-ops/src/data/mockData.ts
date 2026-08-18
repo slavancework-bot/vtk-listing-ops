@@ -21,6 +21,7 @@ export interface ItemScenario {
   mpn?: string;
   sku: string;
   productName: string;
+  shortDescription?: string;
   includedQuestions: IncludedItem[];
   conditionRequired: boolean;
   conditionalField?: ConditionalFieldConfig;
@@ -35,19 +36,22 @@ export const MOCK_SCENARIOS: ItemScenario[] = [
     manufacturer: "Cisco",
     model: "C1111-4P",
     mpn: "C1111-4P",
-    sku: "VTK-00142",
+    sku: "VTK-C1111-4P-14",
     productName: "Cisco 1111 4-Port Dual GE WAN Router",
+    shortDescription: "ISR 1111 4-Port Integrated Services Router",
     includedQuestions: [
-      { id: 1, label: "External Power Adapter" },
+      { id: 1, label: "Power Cord" },
       { id: 2, label: "Rack Mount Brackets" },
       { id: 3, label: "Console Cable" },
       { id: 4, label: "Ethernet Cable" },
-      { id: 5, label: "Documentation / Manual" },
-      { id: 6, label: "Original Box / Packaging" },
+      { id: 5, label: "AC Adapter" },
+      { id: 6, label: "Documentation / Manual" },
+      { id: 7, label: "Original Box / Packaging" },
+      { id: 8, label: "Other (specify)" },
     ],
     conditionRequired: true,
-    preSelectedIncluded: [1, 3],
-    preSelectedCondition: 'C',
+    preSelectedIncluded: [1, 2, 6],
+    preSelectedCondition: 'D',
     categoryName: "Routers > Cisco > Enterprise Routers"
   },
   {
@@ -57,6 +61,7 @@ export const MOCK_SCENARIOS: ItemScenario[] = [
     mpn: "860-BBBI",
     sku: "VTK-00219",
     productName: "Dell 17\" E1715S LCD Monitor",
+    shortDescription: "Dell 17 E1715S LCD Monitor",
     includedQuestions: [
       { id: 1, label: "Monitor Stand / Base", important: true },
       { id: 2, label: "Power Cord" },
@@ -73,6 +78,7 @@ export const MOCK_SCENARIOS: ItemScenario[] = [
     model: "F-FL/90/50K/SF/BZ-87",
     sku: "VTK-00331",
     productName: "Topaz 90W LED Flood Light Fixture",
+    shortDescription: "Topaz 90W LED Flood Light Fixture",
     includedQuestions: [
       { id: 1, label: "LED Flood Light Fixture" },
       { id: 2, label: "Slipfitter Mount / Mounting Bracket" },
@@ -92,6 +98,7 @@ export const MOCK_SCENARIOS: ItemScenario[] = [
     mpn: "ZT23142-T01000FZ",
     sku: "VTK-00408",
     productName: "Zebra ZT231 Industrial Label Printer",
+    shortDescription: "Zebra ZT231 Industrial Label Printer",
     includedQuestions: [
       { id: 1, label: "Power Cord" },
       { id: 2, label: "USB Cable" },
@@ -114,6 +121,7 @@ export const MOCK_SCENARIOS: ItemScenario[] = [
     model: "Mixed Lot",
     sku: "VTK-00512",
     productName: "Network Switch Lot",
+    shortDescription: "Network Switch Lot",
     includedQuestions: [],
     conditionRequired: true,
     conditionalField: {
@@ -132,6 +140,7 @@ export const MOCK_SCENARIOS: ItemScenario[] = [
     mpn: "6XD76EA",
     sku: "VTK-00623",
     productName: "HP EliteBook 840 G6 14\" Laptop",
+    shortDescription: "HP EliteBook 840 G6 14-inch Laptop",
     includedQuestions: [
       { id: 1, label: "AC Power Adapter" },
       { id: 2, label: "Original Box / Packaging" },

@@ -1,4 +1,4 @@
-import { Package } from "lucide-react";
+import { Package, Info } from "lucide-react";
 
 interface ItemIdentityCardProps {
   manufacturer: string;
@@ -6,6 +6,8 @@ interface ItemIdentityCardProps {
   mpn?: string;
   sku: string;
   productName: string;
+  shortDescription?: string;
+  imageUrl?: string;
 }
 
 export function ItemIdentityCard({
@@ -14,36 +16,46 @@ export function ItemIdentityCard({
   mpn,
   sku,
   productName,
+  shortDescription,
+  imageUrl,
 }: ItemIdentityCardProps) {
   return (
-    <div className="flex flex-col gap-6">
-      <div className="aspect-square bg-gray-100 rounded-md border border-gray-200 flex items-center justify-center p-6">
-        <div className="text-gray-300 flex flex-col items-center gap-2">
-          <Package size={48} strokeWidth={1.5} />
-          <span className="text-sm font-medium">No Image Available</span>
-        </div>
-      </div>
+    <div className="flex flex-col h-full">
+      <h3 className="text-xs font-semibold text-emerald-700 uppercase tracking-wider mb-4">ITEM INFORMATION</h3>
       
-      <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-medium text-gray-500 tracking-tight">{manufacturer}</h2>
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight leading-none mb-1">
-          {model}
-        </h1>
-        {mpn && mpn !== model && (
-          <p className="text-sm text-gray-600 font-mono">MPN: {mpn}</p>
+      <div className="w-full h-32 bg-gray-100 rounded-md border border-gray-200 flex items-center justify-center mb-6 overflow-hidden shrink-0">
+        {imageUrl ? (
+          <img src={imageUrl} alt={model} className="object-contain w-full h-full" />
+        ) : (
+          <div className="text-gray-400 flex flex-col items-center gap-2">
+            <Package size={32} strokeWidth={1.5} />
+          </div>
         )}
-        <p className="text-sm text-gray-500 font-mono">SKU: {sku}</p>
       </div>
       
-      <div className="pt-4 border-t border-gray-200">
-        <p className="text-base text-gray-800 leading-snug">{productName}</p>
-      </div>
-      
-      <div className="mt-auto bg-gray-50 p-4 rounded-md border border-gray-200">
-        <p className="text-sm font-medium text-gray-800 flex items-start gap-2">
-          <span className="text-primary mt-0.5">●</span>
-          Verify what is physically included with this item.
+      <div className="flex flex-col gap-1 mb-6">
+        <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none mb-2">
+          {manufacturer === model ? model : `${manufacturer} ${model}`}
+        </h1>
+        <p className="text-sm text-gray-500 leading-snug">
+          {shortDescription || productName}
         </p>
+      </div>
+      
+      <div className="flex flex-col gap-1.5 mt-2">
+        {mpn && (
+          <p className="text-xs text-gray-500 font-mono">MPN: {mpn}</p>
+        )}
+        <p className="text-xs text-gray-500 font-mono">SKU: {sku}</p>
+      </div>
+      
+      <div className="mt-auto pt-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-3 flex items-start gap-2">
+          <Info className="text-blue-500 shrink-0 mt-0.5" size={16} />
+          <p className="text-sm text-blue-800 leading-snug">
+            Please verify what is physically included with this item.
+          </p>
+        </div>
       </div>
     </div>
   );
