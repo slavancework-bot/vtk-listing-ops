@@ -4,6 +4,8 @@ interface BatchProgressProps {
   batchName: string;
   currentIndex: number;
   totalItems: number;
+  completedCount?: number;
+  reviewCount?: number;
   onNext?: () => void;
   onPrev?: () => void;
 }
@@ -12,10 +14,12 @@ export function BatchProgress({
   batchName, 
   currentIndex, 
   totalItems, 
+  completedCount = 0,
+  reviewCount = 0,
   onNext, 
   onPrev 
 }: BatchProgressProps) {
-  const progressPercent = Math.round((currentIndex / totalItems) * 100);
+  const progressPercent = Math.round((completedCount / totalItems) * 100);
   
   return (
     <div className="flex items-center justify-between w-full h-12 px-6 bg-white border-b border-gray-200 shrink-0">
@@ -48,6 +52,12 @@ export function BatchProgress({
       </div>
       
       <div className="flex items-center justify-end w-[320px] gap-4">
+        {completedCount > 0 ? (
+          <span className="text-xs text-emerald-600 font-medium">{completedCount} done</span>
+        ) : null}
+        {reviewCount > 0 ? (
+          <span className="text-xs text-amber-600 font-medium">{reviewCount} review</span>
+        ) : null}
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500 font-medium">Progress</span>
           <div className="w-16 h-2.5 bg-gray-100 rounded-full overflow-hidden">

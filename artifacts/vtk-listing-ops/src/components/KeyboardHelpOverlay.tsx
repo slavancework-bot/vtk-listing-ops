@@ -45,7 +45,7 @@ export function KeyboardHelpOverlay({ isOpen, onClose }: KeyboardHelpOverlayProp
             <ShortcutRow keys={["0"]} label="Toggle item 10" />
             <ShortcutRow keys={["A", "B", "C", "D"]} label="Select Condition" />
             <ShortcutRow keys={["Enter"]} label="Save & Next" />
-            <ShortcutRow keys={["S"]} label="Skip / Needs Review" />
+            <ShortcutRow keys={["F2"]} label="Needs Review" />
             <ShortcutRow keys={["?"]} label="Show this help" />
             <ShortcutRow keys={["Esc"]} label="Close modals / help" />
           </div>

@@ -1,0 +1,258 @@
+VTK LISTING OPS — REPLIT INSTRUCTIONS
+PHASE: EMPLOYEE WORK SCREEN — WORKFLOW SIMULATION & FINAL UX VALIDATION
+
+Repository:
+https://github.com/slavancework-bot/vtk-listing-ops
+
+Current approved checkpoint:
+Commit 83ea23b
+
+GOAL
+Continue refining the Employee Work Screen as a realistic, fully interactive front-end workflow simulation. Do NOT begin real backend integration, OpenAI API integration, SixBit integration, or production database work yet.
+
+The purpose of this phase is to make the employee workflow complete, fast, obvious, keyboard-friendly, and production-ready from a UX standpoint before the engineering layer is connected.
+
+IMPORTANT OWNERSHIP RULE
+Replit owns the visual design, responsive behavior, interaction design, and employee workflow simulation during this phase.
+
+Do not redesign the overall architecture or introduce production backend systems unless specifically instructed later.
+
+CORE REQUIREMENTS
+
+1. PRESERVE THE CURRENT APPROVED DESIGN DIRECTION
+Keep the visual design and layout established in commit 83ea23b unless a change is specifically required by the workflow rules below.
+
+Preserve:
+- One-screen employee workflow
+- No normal workflow scrolling
+- Compact layout
+- VTK branding/header
+- Item information panel
+- Included-items question cards
+- Condition cards
+- Status panel
+- Save & Next button
+- Needs Review action
+- Keyboard shortcut bar
+- Conditional fields area
+- Clean, minimal visual load
+
+2. HARD NO-SCROLL REQUIREMENT
+The employee workflow must remain usable without workflow scrolling at:
+- 1920x1080
+- 1600x900
+- 1366x768
+
+If content changes by scenario, dynamically compact or reorganize the layout rather than introducing normal page scrolling.
+
+A small amount of internal defensive overflow handling is acceptable only if absolutely necessary, but the intended workflow must remain visible on one screen.
+
+3. CONDITIONAL FIELDS MUST BECOME TRULY CONDITIONAL
+Do not show all conditional fields for every item.
+
+Fields such as:
+- QTY TO LIST
+- CHECK COUNT?
+- STOCK TOTAL
+- OTHER NOTES
+
+should only appear when the mock workflow/scenario requires them.
+
+The goal is to reduce employee visual load.
+
+4. KEEP EXPLICIT “NONE OF THESE ARE INCLUDED”
+Preserve a clear explicit action for:
+NONE OF THESE ARE INCLUDED
+
+This must be treated as an answered state, not the same as unanswered.
+
+The app must distinguish:
+- unanswered included-items questions
+- one or more selected included items
+- explicitly confirmed none included
+
+Validation must recognize explicit NONE as complete.
+
+5. CHANGE SKIP / NEEDS REVIEW BEHAVIOR
+Do not treat SKIP and NEEDS REVIEW as the same action.
+
+For this phase:
+- F2 should map to NEEDS REVIEW
+- NEEDS REVIEW should be a clear intentional action
+- Ordinary SKIP should be removed from the primary workflow unless there is a real business reason demonstrated by a scenario
+
+When an item is sent to NEEDS REVIEW:
+- mark the item as review-required
+- preserve employee answers already entered
+- move to the next item
+- reflect review count/status in the simulated batch state
+
+6. KEYBOARD-FIRST WORKFLOW
+An experienced employee should be able to process most items without touching the mouse.
+
+Implement and validate:
+- Number keys for included-item choices where applicable
+- A/B/C/D for condition selection
+- Enter for Save & Next when valid
+- F2 for Needs Review
+- F1 for shortcut/help display
+- Logical focus movement when conditional input is required
+
+Keyboard actions must not accidentally trigger while the user is typing inside free-text or numeric fields.
+
+7. SAVE & NEXT VALIDATION
+SAVE & NEXT must only become available when all required inputs for the current scenario are complete.
+
+Examples:
+- Included-item requirement answered
+- Condition selected
+- Conditional quantity/check-count fields completed if required
+- Any scenario-specific required field completed
+
+The status panel should clearly explain what remains incomplete.
+
+When ready:
+- show Ready to Save
+- Enter should save the mock state
+- advance to the next item
+- update batch progress
+
+8. CREATE REALISTIC MOCK SCENARIOS
+Build a realistic mock batch that demonstrates the actual types of employee decisions this application will need to support.
+
+At minimum include these scenarios:
+
+SCENARIO A — SIMPLE ITEM
+- Few included-item questions
+- Normal condition selection
+- No conditional inventory fields
+- Straight Save & Next
+
+SCENARIO B — MANY INCLUDED QUESTIONS
+- 8 included-item questions
+- Layout must still fit on one screen
+- Multiple selections possible
+
+SCENARIO C — NONE INCLUDED
+- Employee explicitly chooses NONE OF THESE ARE INCLUDED
+- Validation recognizes completion
+
+SCENARIO D — QUANTITY VERIFICATION
+- QTY TO LIST field appears
+- STOCK TOTAL is visible when relevant
+- Employee must enter/confirm the required quantity before saving
+
+SCENARIO E — CHECK COUNT
+- CHECK COUNT? control appears
+- Employee must resolve required value before saving
+
+SCENARIO F — INVENTORY PROBLEM / ZERO STOCK
+- Mock item with inventory inconsistency
+- Screen should make the issue clear without overwhelming the employee
+- Needs Review should be available
+
+SCENARIO G — NEEDS REVIEW
+- Item cannot be resolved by normal employee input
+- F2 sends it to review
+- Answers already entered remain preserved in mock state
+
+SCENARIO H — CONDITION VARIATIONS
+Demonstrate:
+- NEW
+- NEW OPEN BOX
+- FACTORY SEALED
+- USED
+
+9. BATCH SIMULATION
+The mock batch should behave like a real work session.
+
+Implement:
+- Item X of Y
+- progress percentage
+- completed count
+- review-required count
+- persistent answers while navigating during the current browser session
+- previous/next item controls for prototype testing
+- batch completion state
+
+At the end of the mock batch, show a simple completion summary:
+- total items
+- completed
+- needs review
+- any unresolved items
+
+Do not build production persistence yet.
+
+10. STATUS PANEL
+Keep the status panel concise.
+
+It should dynamically show information such as:
+- 3 of 8 selected
+- None included confirmed
+- Condition: USED (D)
+- Quantity confirmed
+- Check Count resolved
+- Missing: Condition
+- Missing: Qty To List
+- Ready to Save
+
+Avoid long instructional paragraphs.
+
+11. CONDITION CARDS
+Preserve the current four-condition layout.
+
+At 1366x768, minor wrapping such as FACTORY SEALED using two lines is acceptable.
+
+Do not spend excessive time trying to force every condition label onto one line if doing so harms readability.
+
+12. EMPLOYEE CLARITY
+The employee should not have to think about the software.
+
+Prioritize:
+- large click targets
+- obvious selected states
+- minimal text
+- clear active/incomplete states
+- strong keyboard support
+- predictable layout
+- no unnecessary modal dialogs
+- no unnecessary confirmations
+
+13. DO NOT ADD YET
+Do NOT implement:
+- OpenAI API calls
+- real listing analysis
+- real CSV ingestion
+- SixBit database access
+- SixBit exports
+- authentication redesign
+- production database persistence
+- production queues/jobs
+- production deployment architecture
+- major state-management framework changes
+- backend refactors unrelated to the prototype
+
+14. CODE QUALITY
+Even though this is still a prototype:
+- keep components reasonably modular
+- use TypeScript types
+- avoid duplicated scenario logic where practical
+- keep mock scenario data separated from presentation components
+- do not hardcode business logic directly into visual components when it can be represented as scenario/config data
+
+15. REVIEW DELIVERABLE
+When complete, provide:
+- GitHub commit SHA
+- concise summary of files/components changed
+- screenshots or preview confirmation for 1920x1080, 1600x900, and 1366x768
+- list of mock scenarios implemented
+- keyboard shortcuts confirmed
+- any UX decisions that still require owner approval
+- confirmation that no real backend/OpenAI/SixBit integration was added
+
+STOP CONDITION
+Do not proceed beyond this phase.
+
+Once the Employee Work Screen workflow simulation is complete, stop and return it for owner review.
+
+The next phase will be production engineering after the employee UX is explicitly approved.
