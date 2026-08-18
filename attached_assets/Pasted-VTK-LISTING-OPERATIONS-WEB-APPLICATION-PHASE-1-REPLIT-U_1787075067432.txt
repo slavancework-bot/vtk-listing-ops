@@ -1,0 +1,355 @@
+VTK LISTING OPERATIONS WEB APPLICATION PHASE 1 — REPLIT UI / UX
+PROTOTYPE INSTRUCTIONS Version 1.0
+
+PURPOSE
+
+Build a polished, clickable FRONT-END PROTOTYPE for an internal VTK
+Listing Operations web application.
+
+This phase is UI/UX ONLY.
+
+DO NOT build the production backend yet. DO NOT integrate the OpenAI API
+yet. DO NOT integrate the ViaTeK eBay Relay yet. DO NOT build real
+SixBit import/export logic yet. DO NOT add production authentication,
+databases, background workers, or external API credentials yet.
+
+Use realistic MOCK DATA so we can test and approve the employee and
+reviewer experience before backend engineering begins.
+
+The approved employee visual direction is DESIGN OPTION 3 — CARD BASED /
+FRIENDLY.
+
+The application must feel fast, simple, professional, and easy for
+employees who are not technical users. The employee should never need to
+understand AI prompts, eBay taxonomy, SixBit schemas, QA engines, API
+calls, or internal workflow logic.
+
+1.  PRIMARY DESIGN PRINCIPLE
+
+The standard employee workflow must fit on ONE FULL SCREEN.
+
+Target workstation viewport: 1920 x 1080 desktop browser.
+
+HARD REQUIREMENTS: - No vertical scrolling during the normal employee
+verification workflow. - No horizontal scrolling. - No opening another
+browser tab. - No navigating to another page between items. - One item
+at a time. - Save & Next must always remain visible. - Questions and
+answers must be obvious immediately. - Required vs optional inputs must
+be visually obvious. - The next item should appear immediately after
+Save & Next. - Avoid modal dialogs for routine work. - Do not expose
+technical system information to employees.
+
+DESIGN GOAL: A trained employee should normally be able to verify a
+straightforward item in approximately 5–15 seconds.
+
+2.  APPLICATION NAME / BRANDING
+
+Application name: VTK Listing Operations
+
+Use a clean professional internal-business style. Employee UI should
+feel friendly and approachable rather than like a database
+administration screen.
+
+Use the approved Option 3 direction: - light background - card-based
+layout - subtle borders - restrained green accents for success / primary
+actions - dark readable text - generous spacing without wasting screen
+space - clear hierarchy - large clickable controls
+
+Do not make the interface look playful, cartoonish, or
+consumer-oriented.
+
+3.  BUILD THREE PROTOTYPE VIEWS
+
+A. EMPLOYEE WORK SCREEN — highest priority B. REVIEWER / APPROVAL SCREEN
+C. BATCH DASHBOARD
+
+The Employee Work Screen should receive most of the design attention.
+
+4.  EMPLOYEE WORK SCREEN — OVERALL LAYOUT
+
+Use one fixed full-page layout divided into approximately three areas:
+
+LEFT: Item identity / product information CENTER: Employee verification
+questions RIGHT: Status + actions
+
+A compact header spans the top. A compact keyboard-shortcut/help strip
+may span the bottom. The employee should understand the entire item
+without scrolling.
+
+5.  TOP HEADER
+
+Show: - VTK Listing Operations logo/name - current batch name - Item X
+of Y - progress bar / percentage - previous/next navigation arrows for
+authorized navigation - employee name/avatar placeholder if useful -
+compact settings/help icon if needed
+
+Do not overload the header.
+
+6.  LEFT PANEL — ITEM IDENTITY
+
+Show: - product image placeholder / mock product image - Manufacturer -
+Model / MPN — LARGE and prominent - short normalized product name -
+optional Item ID / SKU / internal reference - short plain-English
+instruction such as “Verify what is physically included with this item.”
+
+Do not show eBay category IDs, aspect confidence, AI research notes,
+prompt versions, JSON, database IDs, or QA internals.
+
+7.  CENTER PANEL — WHAT’S INCLUDED
+
+Heading: WHAT’S INCLUDED? Check all that apply.
+
+Display each physical component as a large checkbox/card.
+
+Example: [ ] 1 External Power Adapter [ ] 2 Rack Mount Brackets [ ] 3
+Console Cable [ ] 4 Ethernet Cable [ ] 5 Documentation / Manual [ ] 6
+Original Box / Packaging
+
+Requirements: - large click target - number visibly displayed - one
+component per option - two-column grid when space allows - easy-to-scan
+names - selected state visually obvious - employee can click anywhere on
+the card - support approximately 10 questions without scrolling
+
+8.  CONDITION CONTROL
+
+Use four large selectable cards: A — NEW B — NEW OPEN BOX C — NEW
+FACTORY SEALED D — USED
+
+Selected condition must be immediately obvious. A/B/C/D keyboard
+shortcuts should work when focus is not inside a text field.
+
+9.  CONDITIONAL FIELDS
+
+Only show fields when required for the current item/workflow: - Qty To
+List - Stock Total - Check Count? - Fixed Price eBay - Inventory
+verification question - Other Question - Other Answer - Employee Notes
+
+Do not show irrelevant controls merely because they exist in the
+database. Employee-facing language must be plain English.
+
+10. OTHER QUESTION
+
+If the system needs an unusual unit-specific fact, display one clearly
+labeled question.
+
+Example: OTHER INFORMATION NEEDED Enter anything shown in BIOS for CPU,
+RAM, storage, and OS. [ i5-9500 16GB 256SSD Win11 ]
+
+Employees may use normal shorthand. Do not force numerous technical
+fields unless separate fields are genuinely necessary.
+
+11. RIGHT PANEL — STATUS AND ACTIONS
+
+Show: - required answers remaining - current condition selection -
+completion indicator - Ready to Save state
+
+Primary button: SAVE & NEXT Secondary button: SKIP / NEEDS REVIEW
+Optional small button: BACK / PREVIOUS
+
+Save & Next must be the largest and most prominent action.
+
+12. SAVE & NEXT BEHAVIOR
+
+When complete: 1. Click Save & Next or press Enter. 2. Show a brief
+non-blocking success state. 3. Increment progress. 4. Load the next item
+immediately in the same screen. 5. Return focus to the first actionable
+control.
+
+Do not require a Continue click.
+
+If required information is missing, highlight the missing controls and
+show a short inline message.
+
+13. SKIP / NEEDS REVIEW
+
+Provide simple reasons: - Cannot identify item - Cannot verify included
+components - Inventory does not match - Item condition unclear - Other
+
+Allow a short note. Move the item to Needs Review and load the next
+item.
+
+14. KEYBOARD-FIRST OPERATION
+
+1–9 = toggle Included item 1–9 0 = item 10 when applicable A/B/C/D =
+condition Enter = Save & Next when valid S = Skip / Needs Review ? =
+shortcut help Escape = close help/popover
+
+Do not trigger shortcuts while typing in a text field. Show shortcuts
+subtly at the bottom.
+
+15. SAMPLE EMPLOYEE SCENARIOS
+
+SCENARIO 1 — CISCO C1111-4P Questions: 1. External Power Adapter 2. Rack
+Mount Brackets 3. Console Cable 4. Ethernet Cable 5. Documentation /
+Manual 6. Original Box / Packaging Condition required.
+
+SCENARIO 2 — DELL E1715S MONITOR Questions: 1. Monitor Stand / Base 2.
+Power Cord 3. VGA Cable 4. DisplayPort Cable The stand/base must be
+treated as buyer-significant.
+
+SCENARIO 3 — TOPAZ F-FL/90/50K/SF/BZ-87 Questions: 1. LED Flood Light
+Fixture 2. Slipfitter Mount / Mounting Bracket 3. Mounting Hardware /
+Screws / Bolts 4. Photocell Sensor 5. Installation Instructions / Manual
+6. Original Box / Packaging
+
+SCENARIO 4 — ZEBRA ZT231 Show Included questions plus: “Enter print
+resolution and installed options if known.” Example: 203dpi cutter no
+RFID
+
+SCENARIO 5 — INVENTORY / REPAIR ISSUE “Qty To List 5 exceeds Qty
+Uncommitted 1. What should Qty To List be?” Employee can enter: 1 Do not
+show unrelated controls.
+
+SCENARIO 6 — MINIMAL INPUT Most information is already known and
+employee needs only one quick verification.
+
+16. REVIEWER / APPROVAL SCREEN
+
+Use the same visual language but allow more information density. Still
+target one 1920×1080 screen without normal vertical scrolling.
+
+Show: ITEM — image, model/MPN, product identity EMPLOYEE ANSWERS —
+Included, Not Included, Condition, inventory answers, notes EBAY
+CATEGORY — selected category and compact alternates ITEM SPECIFICS —
+important confirmed values / review flags TITLE — proposed title,
+character count, QA result DESCRIPTION — compact preview and checks,
+with full HTML view available QA RESULTS — Product Identity, Questions,
+Category, Item Specifics, Title, Description, SixBit Row SIXBIT PREVIEW
+— Action, Condition, Product ID, SKU, Price, key mapped fields
+
+Actions: APPROVE & NEXT SEND BACK REJECT / NEEDS REVIEW
+
+17. SEND BACK FLOW
+
+Reason options: - Wrong product/model - Missing Included question -
+Incorrect employee answer - Wrong eBay category - Wrong item specific -
+Title problem - Description problem - Inventory/quantity problem - Other
+
+Allow reviewer note. Prototype only; store in mock state.
+
+18. BATCH DASHBOARD
+
+Show batch name, created date, creator, total items, progress, workflow
+counts, and Open Batch.
+
+Example: Researching: 4 Waiting for Employee: 12 Needs Review: 3 Ready
+for Approval: 8 Approved: 21 Exported: 2
+
+Actions: NEW BATCH EMPLOYEE QUEUE REVIEW QUEUE EXPORTS
+
+Do not overbuild admin analytics in Phase 1.
+
+19. EMPLOYEE QUEUE BEHAVIOR
+
+Preferred: Start Work → next eligible item → verify → Save & Next → next
+eligible item.
+
+Normal workflow is one item at a time.
+
+20. RESPONSIVE / SCREEN REQUIREMENTS
+
+Primary: 1920×1080 Also test: 1600×900 and 1366×768
+
+At 1920×1080 and 1600×900, normal employee workflow must require NO
+vertical scrolling.
+
+At 1366×768, compact adaptation is preferred; minor scrolling only if
+unavoidable.
+
+Do not design primarily for mobile in Phase 1.
+
+21. ACCESSIBILITY / READABILITY
+
+-   comfortable text size
+-   high contrast
+-   do not communicate status through color alone
+-   large click targets
+-   visible keyboard focus
+-   labels remain visible
+-   avoid tiny gray text
+-   avoid excessive unlabeled icons
+
+22. STATES TO PROTOTYPE
+
+Employee: - unanswered - partially answered - ready to save - missing
+required answer - saved successfully - skipped / needs review
+
+Reviewer: - all QA pass - warning - blocking failure - send-back state
+
+Dashboard: - active batch - completed batch - unresolved batch
+
+23. MOCK DATA ONLY
+
+Do not add OpenAI API keys, ViaTeK Relay credentials, eBay credentials,
+SixBit database credentials, or production employee credentials. Do not
+put secrets in browser code.
+
+24. TECHNICAL IMPLEMENTATION FOR PROTOTYPE
+
+Use a modern component-based frontend suitable for later production
+expansion.
+
+Prefer reusable components: AppHeader BatchProgress ItemIdentityCard
+IncludedQuestionCard ConditionSelector ConditionalField StatusPanel
+SaveNextButton ReviewerQASection SixBitPreview BatchCard
+
+Use clean mock state/data so components can later connect to real APIs.
+Do not hard-code the UI to the sample products.
+
+25. DO NOT BUILD THESE YET
+
+Do NOT implement: - real OpenAI API calls - real manufacturer research -
+ViaTeK Relay calls - eBay publication - SixBit database writes -
+production CSV generation - production authentication - production
+database - background queues - automatic approvals - production
+monitoring
+
+26. ACCEPTANCE CRITERIA — EMPLOYEE SCREEN
+
+PASS only if: - standard item fits on one screen at 1920×1080 - no
+normal vertical scrolling - one item at a time - product/model
+immediately obvious - Included questions immediately obvious - Condition
+immediately obvious - required vs optional obvious - Save & Next always
+visible - Skip / Needs Review always available - keyboard shortcuts
+work - next item loads without page navigation - no technical
+AI/eBay/SixBit internals shown - all six sample scenarios render
+cleanly - UI works with 1, 4, 6, and 10 Included questions
+
+27. ACCEPTANCE CRITERIA — REVIEWER SCREEN
+
+PASS only if reviewer can see without changing pages: - item identity -
+employee answers - selected category - important item specifics -
+proposed title + character count - description summary - QA status -
+SixBit preview - approval actions
+
+28. DELIVERABLES
+
+Return: 1. Working clickable Replit prototype. 2. Employee Work Screen.
+3. Reviewer / Approval Screen. 4. Batch Dashboard. 5. Mock data for all
+required scenarios. 6. Keyboard shortcut implementation. 7. Responsive
+screenshots at 1920×1080, 1600×900, and 1366×768. 8. Short UI design
+notes covering component structure, responsive behavior, compromises,
+and owner decisions needed.
+
+29. STOP CONDITION
+
+After the clickable prototype is complete, STOP.
+
+Do not begin backend/API/database implementation.
+
+Present the prototype for owner review and approval. The next
+engineering phase begins only after the employee and reviewer UI is
+approved.
+
+30. FINAL DESIGN PRIORITY
+
+When making a design tradeoff: 1. Employee speed 2. Employee clarity 3.
+No scrolling / one-screen workflow 4. Accuracy / prevention of missed
+required answers 5. Reviewer efficiency 6. Visual polish 7. Extra
+features
+
+The application should hide complexity from employees.
+
+The employee’s job is to look at the physical item, answer simple
+questions, and move to the next item. Everything else belongs behind the
+interface.

@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "VTK Listing Operations"
+description = "An internal web prototype for VTK Listing Operations — an employee-facing tool for verifying product inclusions, conditions, and listing details before eBay export. Includes three views: an Employee Work Screen optimized for 5–15 second per-item verification, a Reviewer/Approval Screen with QA results and SixBit preview, and a Batch Dashboard. All mock data, no backend."
+version = "1.0.0"
+id = "artifacts/vtk-listing-ops"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19473
+
+[services.development]
+run = "pnpm --filter @workspace/vtk-listing-ops run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/vtk-listing-ops", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/vtk-listing-ops/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19473"
+BASE_PATH = "/"
