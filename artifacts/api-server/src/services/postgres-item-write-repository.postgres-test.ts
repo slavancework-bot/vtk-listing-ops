@@ -32,7 +32,7 @@ test("all seven Phase 1 tables and append-only audit protection exist", async ()
   assert.deepEqual(tables.rows.map((row) => row.table_name).filter((name) => !name.startsWith("__drizzle")), ["audit_events", "batches", "idempotency_records", "item_drafts", "listing_items", "processing_jobs", "review_records"]);
   const batch = await pool.query<{ id: string }>("insert into batches(name, source) values ('Synthetic', 'csv') returning id");
   await pool.query("insert into audit_events(batch_id, actor_id, actor_role, action, correlation_id) values ($1, 'test', 'employee', 'employee_answer_saved', gen_random_uuid()::text)", [batch.rows[0].id]);
-  await assert.rejects(() => pool.query("update audit_events set action='changed'"), /append-only/);
+  await assert.rejects(() => pool.query("update audit_events set action='employee_answer_saved'"), /append-only/);
   await assert.rejects(() => pool.query("delete from audit_events"), /append-only/);
 });
 
