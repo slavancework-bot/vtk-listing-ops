@@ -14,6 +14,29 @@ test("an identical idempotency retry replays without duplicate answer or audit",
   const second = await service.save({ idempotencyKey: "save-1", actorId: "employee-1", correlationId: "request-2", draft });
   assert.equal(first.replayed, false); assert.equal(second.replayed, true); assert.equal(repository.answers.size, 1); assert.equal(repository.audits.length, 1);
 });
+test("concurrent identical requests serialize to one execution and one replay", async () => {
+  const repository = new InMemoryItemWriteRepository([item]); const service = new ItemWriteService(repository);
+  const results = await Promise.all([
+    service.save({ idempotencyKey: "concurrent-same", actorId: "employee-1", correlationId: "request-1", draft }),
+    service.save({ idempotencyKey: "concurrent-same", actorId: "employee-1", correlationId: "request-2", draft }),
+  ]);
+  assert.deepEqual(results.map((result) => result.replayed).sort(), [false, true]);
+  assert.equal(repository.answers.size, 1); assert.equal(repository.audits.length, 1);
+  assert.equal(repository.items.get(item.id)?.version, 2); assert.equal(repository.items.get(item.id)?.workflowStatus, "completed");
+  assert.equal(repository.activeIdempotencyRecordCount, 1); assert.equal(repository.activeSynchronizationScopeCount, 0);
+});
+test("concurrent changed payload produces one success and one controlled conflict", async () => {
+  const repository = new InMemoryItemWriteRepository([item]); const service = new ItemWriteService(repository);
+  const outcomes = await Promise.allSettled([
+    service.save({ idempotencyKey: "concurrent-different", actorId: "employee-1", correlationId: "request-1", draft }),
+    service.save({ idempotencyKey: "concurrent-different", actorId: "employee-1", correlationId: "request-2", draft: { ...draft, notes: "changed" } }),
+  ]);
+  assert.equal(outcomes.filter((outcome) => outcome.status === "fulfilled").length, 1);
+  const loser = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
+  assert.ok(loser); assert.ok(loser.reason instanceof ApiFault); assert.equal(loser.reason.status, 409); assert.equal(loser.reason.code, "CONFLICT");
+  assert.equal(repository.answers.size, 1); assert.equal(repository.audits.length, 1); assert.equal(repository.items.get(item.id)?.version, 2);
+  assert.equal(repository.activeIdempotencyRecordCount, 1); assert.equal(repository.activeSynchronizationScopeCount, 0);
+});
 test("reusing an idempotency key for a different request conflicts", async () => {
   const repository = new InMemoryItemWriteRepository([item]); const service = new ItemWriteService(repository);
   await service.save({ idempotencyKey: "save-1", actorId: "employee-1", correlationId: "request-1", draft });
@@ -39,7 +62,38 @@ test("in-memory idempotency matches production cross-actor and expiration behavi
   now += 24 * 60 * 60 * 1000 + 1;
   expiringRepo.items.set(item.id, item);
   const reused = await expiringService.save({ idempotencyKey: "expiring", actorId: "employee-1", correlationId: "request-4", draft: { ...draft, notes: "new payload" } });
-  assert.equal(reused.replayed, false); assert.equal(expiringRepo.audits.length, 2);
+  assert.equal(reused.replayed, false); assert.equal(expiringRepo.audits.length, 2); assert.equal(expiringRepo.activeIdempotencyRecordCount, 1); assert.equal(expiringRepo.activeSynchronizationScopeCount, 0);
+});
+
+test("concurrent cross-actor requests remain isolated and cross-item reuse conflicts", async () => {
+  const otherItem = { ...item, id: "item-2" as ListingItemId }; const repository = new InMemoryItemWriteRepository([item, otherItem]); const service = new ItemWriteService(repository);
+  const actors = await Promise.all([
+    service.save({ idempotencyKey: "shared", actorId: "employee-1", correlationId: "request-1", draft }),
+    service.save({ idempotencyKey: "shared", actorId: "employee-2", correlationId: "request-2", draft: { ...draft, itemId: otherItem.id, employeeId: "employee-2" as EmployeeId } }),
+  ]);
+  assert.deepEqual(actors.map((result) => result.replayed), [false, false]); assert.equal(repository.audits.length, 2); assert.equal(repository.activeIdempotencyRecordCount, 2);
+
+  const first = { ...item, id: "item-3" as ListingItemId }; const second = { ...item, id: "item-4" as ListingItemId }; const crossItemRepository = new InMemoryItemWriteRepository([first, second]); const crossItemService = new ItemWriteService(crossItemRepository);
+  const outcomes = await Promise.allSettled([
+    crossItemService.save({ idempotencyKey: "cross-item", actorId: "employee-1", correlationId: "request-3", draft: { ...draft, itemId: first.id } }),
+    crossItemService.save({ idempotencyKey: "cross-item", actorId: "employee-1", correlationId: "request-4", draft: { ...draft, itemId: second.id } }),
+  ]);
+  assert.equal(outcomes.filter((outcome) => outcome.status === "fulfilled").length, 1);
+  const conflict = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
+  assert.ok(conflict); assert.ok(conflict.reason instanceof ApiFault); assert.equal(conflict.reason.status, 409);
+  assert.equal(crossItemRepository.audits.length, 1); assert.equal(crossItemRepository.activeIdempotencyRecordCount, 1); assert.equal(crossItemRepository.activeSynchronizationScopeCount, 0);
+});
+
+test("failed authoritative operation releases and cleans its synchronization scope", async () => {
+  const repository = new InMemoryItemWriteRepository([item]);
+  const recoveryResponse = { itemId: "00000000-0000-4000-8000-000000000001", itemVersion: 2, status: "completed" as const, nextItemId: null, replayed: false };
+  const outcomes = await Promise.allSettled([
+    repository.executeIdempotent("recover", "employee-1", "first", async () => { throw new Error("forced failure"); }),
+    repository.executeIdempotent("recover", "employee-1", "second", async () => recoveryResponse),
+  ]);
+  assert.equal(outcomes[0].status, "rejected"); assert.match(String((outcomes[0] as PromiseRejectedResult).reason), /forced failure/);
+  assert.equal(outcomes[1].status, "fulfilled"); assert.equal((outcomes[1] as PromiseFulfilledResult<typeof recoveryResponse>).value.replayed, false);
+  assert.equal(repository.activeSynchronizationScopeCount, 0); assert.equal(repository.activeIdempotencyRecordCount, 1);
 });
 
 for (const terminalStatus of ["completed", "reviewed", "exported", "processing_failed"] as const) {

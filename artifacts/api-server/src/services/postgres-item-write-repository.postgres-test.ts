@@ -61,6 +61,9 @@ test("database constraints reject invalid versions, controlled domains, and job 
   await assert.rejects(() => pool.query("insert into review_records(item_id, employee_id, source_item_version, resulting_item_version, reason_code, entered_answer, source_state) values ($1, 'employee', 1, 2, 'uncontrolled', '{}', '{}')", [item.rows[0].id]), /review_reason_code/);
   await assert.rejects(() => pool.query("insert into review_records(item_id, employee_id, source_item_version, resulting_item_version, reason_code, entered_answer, source_state) values ($1, 'employee', 2, 2, 'other', '{}', '{}')", [item.rows[0].id]), /review_records_versions_ordered/);
   await assert.rejects(() => pool.query("insert into audit_events(item_id, actor_id, actor_role, action, correlation_id) values ($1, 'actor', 'outsider', 'employee_answer_saved', gen_random_uuid()::text)", [item.rows[0].id]), /audit_actor_role/);
+  await assert.rejects(() => pool.query("insert into audit_events(item_id, actor_id, actor_role, action, correlation_id) values ($1, 'actor', 'employee', 'uncontrolled_action', gen_random_uuid()::text)", [item.rows[0].id]), /audit_action/);
+  await assert.rejects(() => pool.query("insert into idempotency_records(key, actor_id, operation, request_hash, response_status, response_body, created_at, expires_at) values ('bad-expiry-equal', 'actor', 'employee_item_write', 'hash', 200, '{}', now(), now())"), /idempotency_expiry_after_creation/);
+  await assert.rejects(() => pool.query("insert into idempotency_records(key, actor_id, operation, request_hash, response_status, response_body, created_at, expires_at) values ('bad-expiry-earlier', 'actor', 'employee_item_write', 'hash', 200, '{}', now(), now()-interval '1 second')"), /idempotency_expiry_after_creation/);
 });
 
 test("concurrent identical writes produce one answer and one audit then replay", async () => {
