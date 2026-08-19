@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import { ApiFault } from "../lib/errors";
 
 export function correlationId(req: Request, res: Response, next: NextFunction) {
-  req.correlationId = req.header("x-request-id")?.slice(0, 128) || randomUUID();
+  req.correlationId = randomUUID();
   res.setHeader("x-request-id", req.correlationId);
   next();
 }
@@ -20,6 +20,7 @@ export function securityHeaders(_req: Request, res: Response, next: NextFunction
 const buckets = new Map<string, { count: number; resetAt: number }>();
 export function writeRateLimit(req: Request, _res: Response, next: NextFunction) {
   const now = Date.now();
+  if (buckets.size > 1_000) for (const [bucketKey, bucket] of buckets) if (bucket.resetAt <= now) buckets.delete(bucketKey);
   const key = `${req.identity?.subject ?? req.ip}:writes`;
   const current = buckets.get(key);
   const bucket = !current || current.resetAt <= now ? { count: 0, resetAt: now + 60_000 } : current;

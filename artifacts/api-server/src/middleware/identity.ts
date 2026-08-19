@@ -6,8 +6,10 @@ export interface IdentityProvider { authenticate(req: Request): Promise<{ subjec
 // Development-only adapter. Production must replace this with a trusted session/OIDC provider.
 export class DevelopmentIdentityProvider implements IdentityProvider {
   async authenticate(req: Request) {
-    if (process.env.NODE_ENV === "production") return null;
-    return { subject: req.header("x-development-user") ?? "development-employee", role: "employee" as const };
+    if (process.env.NODE_ENV === "production" || process.env.ALLOW_DEVELOPMENT_IDENTITY !== "true") return null;
+    const subject = req.header("x-development-user");
+    if (!subject) return null;
+    return { subject, role: "employee" as const };
   }
 }
 

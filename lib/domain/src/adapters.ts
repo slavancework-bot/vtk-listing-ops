@@ -19,11 +19,14 @@ export interface CsvListingAdapter {
   projectExport(item: ListingItem, original: ImportedSourceRow): Promise<Readonly<Record<string, string>>>;
 }
 
-export interface AiProcessingRequest<TInput> {
+export interface AiProcessingRequest<TInput, TOutput> {
   promptId: string;
   promptVersion: string;
   input: TInput;
   timeoutMs: number;
+  model: string;
+  retry: { maxAttempts: number; baseDelayMs: number; retryableErrorCodes: readonly string[] };
+  validateOutput(value: unknown): TOutput;
 }
 
 export interface AiUsage {
@@ -34,11 +37,21 @@ export interface AiUsage {
 }
 
 export interface AiProcessingResult<TOutput> {
+  ok: true;
   output: TOutput;
   model: string;
   usage: AiUsage;
 }
 
+export interface AiProcessingFailure {
+  ok: false;
+  code: "timeout" | "rate_limited" | "malformed_output" | "provider_error" | "retry_exhausted";
+  safeMessage: string;
+  retryable: boolean;
+  model: string;
+  latencyMs: number;
+}
+
 export interface ListingAiProcessor<TInput, TOutput> {
-  process(request: AiProcessingRequest<TInput>): Promise<AiProcessingResult<TOutput>>;
+  process(request: AiProcessingRequest<TInput, TOutput>): Promise<AiProcessingResult<TOutput> | AiProcessingFailure>;
 }

@@ -7,7 +7,7 @@ import { MOCK_SCENARIOS } from "../data/mockData";
 import { Check, X, AlertCircle } from "lucide-react";
 
 export default function ReviewerScreen() {
-  const scenario = MOCK_SCENARIOS[0]; // Cisco router
+  const scenario = MOCK_SCENARIOS.find((candidate) => candidate.manufacturer === "Cisco") ?? MOCK_SCENARIOS[0];
   
   const [showSendBack, setShowSendBack] = useState(false);
   const [sendBackReason, setSendBackReason] = useState("");
@@ -25,18 +25,21 @@ export default function ReviewerScreen() {
   // Mock reviewer data based on Cisco scenario
   const employeeChecked = new Set([1, 3]);
   const qaResults: any[] = [
-    { label: "Product Identity", status: "pass" },
-    { label: "Inclusion Questions", status: "pass" },
-    { label: "Category", status: "pass" },
-    { label: "Item Specifics", status: "warning", message: "1 warning" },
-    { label: "Title Length", status: "pass" },
-    { label: "Description Structure", status: "pass" },
-    { label: "SixBit Row Validation", status: "pass" },
+    { label: "Product Identity", status: "warning", message: "Prototype — not verified" },
+    { label: "Inclusion Questions", status: "warning", message: "Prototype — not verified" },
+    { label: "Category", status: "warning", message: "Prototype — not verified" },
+    { label: "Item Specifics", status: "warning", message: "Prototype — not verified" },
+    { label: "Title Length", status: "warning", message: "Prototype — not verified" },
+    { label: "Description Structure", status: "warning", message: "Prototype — not verified" },
+    { label: "SixBit Row Validation", status: "warning", message: "Prototype — not verified" },
   ];
 
   return (
     <div className="fixed inset-0 bg-gray-50 flex flex-col font-sans overflow-hidden">
       <AppHeader />
+      <div className="bg-amber-100 border-b border-amber-300 px-6 py-2 text-center text-sm font-bold text-amber-900">
+        PROTOTYPE DATA — NOT VERIFIED FOR LISTING, PRICING, OR EXPORT
+      </div>
       
       {/* Reviewer Header */}
       <div className="flex items-center justify-between w-full h-12 px-6 bg-white border-b border-gray-200 shrink-0">
@@ -81,7 +84,7 @@ export default function ReviewerScreen() {
               <div>
                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Condition Selected</span>
                 <div className="bg-emerald-100 border-2 border-emerald-500 text-emerald-900 font-bold p-3 rounded-md inline-block">
-                  C - NEW FACTORY SEALED
+                  Prototype condition — not verified
                 </div>
               </div>
             </div>
@@ -115,8 +118,8 @@ export default function ReviewerScreen() {
                 "Condition": "New",
                 "ProductID": "C1111-4P",
                 "SKU": "VTK-00142",
-                "Price": "$289.99",
-                "Qty": "1"
+                "Price": "NOT VERIFIED",
+                "Qty": "NOT VERIFIED"
               }}
             />
           </div>

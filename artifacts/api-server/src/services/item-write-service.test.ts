@@ -28,3 +28,21 @@ test("Needs Review persists answers, reason, and one audit event", async () => {
   const response = await service.save({ idempotencyKey: "review-1", actorId: "employee-1", correlationId: "request-1", draft: { ...draft, includedItems: { selectedQuestionIds: [], explicitlyNone: false }, conditionCode: null }, reviewReason: { code: "missing_information", note: "Cannot identify cord" } });
   assert.equal(response.status, "needs_review"); assert.equal(repository.reviews.length, 1); assert.equal(repository.audits[0].action, "needs_review_selected");
 });
+
+for (const terminalStatus of ["completed", "reviewed", "exported", "processing_failed"] as const) {
+  test(`rejects an illegal ${terminalStatus} to completed employee transition`, async () => {
+    const repository = new InMemoryItemWriteRepository([{ ...item, workflowStatus: terminalStatus }]);
+    const service = new ItemWriteService(repository);
+    await assert.rejects(() => service.save({ idempotencyKey: `illegal-${terminalStatus}`, actorId: "employee-1", correlationId: "request-1", draft }), (error: unknown) => error instanceof ApiFault && error.status === 409);
+    assert.equal(repository.audits.length, 0);
+  });
+}
+
+for (const terminalStatus of ["reviewed", "exported"] as const) {
+  test(`rejects an illegal ${terminalStatus} to needs_review transition`, async () => {
+    const repository = new InMemoryItemWriteRepository([{ ...item, workflowStatus: terminalStatus }]);
+    const service = new ItemWriteService(repository);
+    await assert.rejects(() => service.save({ idempotencyKey: `illegal-review-${terminalStatus}`, actorId: "employee-1", correlationId: "request-1", draft, reviewReason: { code: "other" } }), (error: unknown) => error instanceof ApiFault && error.status === 409);
+    assert.equal(repository.audits.length, 0);
+  });
+}

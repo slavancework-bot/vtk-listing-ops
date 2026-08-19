@@ -1,90 +1,15 @@
 openapi: 3.1.0
-info:
-  # Do not change the title, if the title changes, the import paths will be broken
-  title: Api
-  version: 0.1.0
-  description: API specification
-servers:
-  - url: /api
-    description: Base API path
-tags:
-  - name: health
-    description: Health operations
-  - name: batches
-    description: Batch import and progress contracts
-  - name: employee
-    description: Employee item workflow contracts
+info: { title: Api, version: 0.1.1, description: Implemented Phase 1 API surface only }
+servers: [{ url: /api }]
+tags: [{ name: health }, { name: employee }]
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
-      summary: Health check
-      description: Returns server health status
+      security: []
       responses:
-        "200":
-          description: Healthy
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HealthStatus"
-  /batches:
-    get:
-      operationId: listBatches
-      tags: [batches]
-      responses:
-        "200":
-          description: Available batches
-          content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Batch" } } } }
-    post:
-      operationId: createBatch
-      tags: [batches]
-      summary: Create an import batch after server-side source validation
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: "#/components/schemas/CreateBatchRequest" } } }
-      responses:
-        "201": { description: Batch created, content: { application/json: { schema: { $ref: "#/components/schemas/Batch" } } } }
-        "400": { $ref: "#/components/responses/ApiError" }
-  /batches/{batchId}:
-    parameters: [{ $ref: "#/components/parameters/BatchId" }]
-    get:
-      operationId: getBatch
-      tags: [batches]
-      responses:
-        "200": { description: Batch, content: { application/json: { schema: { $ref: "#/components/schemas/Batch" } } } }
-        "404": { $ref: "#/components/responses/ApiError" }
-  /batches/{batchId}/items:
-    parameters: [{ $ref: "#/components/parameters/BatchId" }]
-    get:
-      operationId: listBatchItems
-      tags: [batches]
-      responses:
-        "200": { description: Batch items, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ListingItem" } } } } }
-  /batches/{batchId}/progress:
-    parameters: [{ $ref: "#/components/parameters/BatchId" }]
-    get:
-      operationId: getBatchProgress
-      tags: [batches]
-      responses:
-        "200": { description: Batch progress, content: { application/json: { schema: { $ref: "#/components/schemas/BatchProgress" } } } }
-  /batches/{batchId}/employee-items/current:
-    parameters: [{ $ref: "#/components/parameters/BatchId" }]
-    get:
-      operationId: getCurrentEmployeeItem
-      tags: [employee]
-      responses:
-        "200": { description: Current item and restored draft, content: { application/json: { schema: { $ref: "#/components/schemas/EmployeeItemResponse" } } } }
-        "404": { $ref: "#/components/responses/ApiError" }
-  /items/{itemId}/draft:
-    parameters: [{ $ref: "#/components/parameters/ItemId" }]
-    put:
-      operationId: saveItemDraft
-      tags: [employee]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SaveItemRequest" } } } }
-      responses:
-        "200": { description: Draft saved, content: { application/json: { schema: { $ref: "#/components/schemas/ItemDraft" } } } }
-        "409": { $ref: "#/components/responses/ApiError" }
+        "200": { description: Healthy, content: { application/json: { schema: { $ref: "#/components/schemas/HealthStatus" } } } }
   /items/{itemId}/answer:
     parameters: [{ $ref: "#/components/parameters/ItemId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
     put:
@@ -92,9 +17,14 @@ paths:
       tags: [employee]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SaveItemRequest" } } } }
       responses:
-        "200": { description: Answer saved or idempotently replayed, content: { application/json: { schema: { $ref: "#/components/schemas/ItemWriteResponse" } } } }
+        "200": { description: Answer saved or replayed, content: { application/json: { schema: { $ref: "#/components/schemas/ItemWriteResponse" } } } }
+        "400": { $ref: "#/components/responses/ApiError" }
+        "401": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
         "409": { $ref: "#/components/responses/ApiError" }
         "422": { $ref: "#/components/responses/ApiError" }
+        "429": { $ref: "#/components/responses/ApiError" }
+        "500": { $ref: "#/components/responses/ApiError" }
   /items/{itemId}/needs-review:
     parameters: [{ $ref: "#/components/parameters/ItemId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
     post:
@@ -102,129 +32,55 @@ paths:
       tags: [employee]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/NeedsReviewRequest" } } } }
       responses:
-        "200": { description: Review state saved or idempotently replayed, content: { application/json: { schema: { $ref: "#/components/schemas/ItemWriteResponse" } } } }
+        "200": { description: Review state saved or replayed, content: { application/json: { schema: { $ref: "#/components/schemas/ItemWriteResponse" } } } }
+        "400": { $ref: "#/components/responses/ApiError" }
+        "401": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
         "409": { $ref: "#/components/responses/ApiError" }
+        "422": { $ref: "#/components/responses/ApiError" }
+        "429": { $ref: "#/components/responses/ApiError" }
+        "500": { $ref: "#/components/responses/ApiError" }
 components:
+  securitySchemes: { bearerAuth: { type: http, scheme: bearer } }
   parameters:
-    BatchId: { name: batchId, in: path, required: true, schema: { type: string, format: uuid } }
     ItemId: { name: itemId, in: path, required: true, schema: { type: string, format: uuid } }
     IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
   responses:
-    ApiError:
-      description: Structured API error
-      content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } }
+    ApiError: { description: Structured API error, content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
   schemas:
-    HealthStatus:
-      type: object
-      properties:
-        status:
-          type: string
-      required:
-        - status
-    ProcessingStatus: { type: string, enum: [pending, ready_for_employee, in_progress, completed, needs_review, awaiting_processing, processing_failed, reviewed, exported] }
+    HealthStatus: { type: object, required: [status], properties: { status: { type: string } } }
     ConditionCode: { type: string, enum: [A, B, C, D] }
-    Batch:
-      type: object
-      required: [id, name, source, createdAt, status, totalItemCount, completedCount, reviewCount, pendingCount, version]
-      properties:
-        id: { type: string, format: uuid }
-        name: { type: string }
-        source: { type: string, enum: [csv, manual, api] }
-        createdAt: { type: string, format: date-time }
-        status: { $ref: "#/components/schemas/ProcessingStatus" }
-        totalItemCount: { type: integer, minimum: 0 }
-        completedCount: { type: integer, minimum: 0 }
-        reviewCount: { type: integer, minimum: 0 }
-        pendingCount: { type: integer, minimum: 0 }
-        version: { type: integer, minimum: 1 }
-    BatchProgress:
-      type: object
-      required: [totalItemCount, completedCount, reviewCount, processedCount, pendingCount, percent, complete]
-      properties:
-        totalItemCount: { type: integer, minimum: 0 }
-        completedCount: { type: integer, minimum: 0 }
-        reviewCount: { type: integer, minimum: 0 }
-        processedCount: { type: integer, minimum: 0 }
-        pendingCount: { type: integer, minimum: 0 }
-        percent: { type: integer, minimum: 0, maximum: 100 }
-        complete: { type: boolean }
-    CreateBatchRequest:
-      type: object
-      required: [name, source, sourceFileToken]
-      properties:
-        name: { type: string, minLength: 1, maxLength: 200 }
-        source: { type: string, enum: [csv] }
-        sourceFileToken: { type: string, description: Opaque reference to a separately validated server-side upload }
     IncludedItemsAnswer:
       type: object
       required: [selectedQuestionIds, explicitlyNone]
-      properties:
-        selectedQuestionIds: { type: array, uniqueItems: true, items: { type: string } }
-        explicitlyNone: { type: boolean }
+      properties: { selectedQuestionIds: { type: array, uniqueItems: true, items: { type: string } }, explicitlyNone: { type: boolean } }
     ItemDraft:
       type: object
       required: [itemId, itemVersion, includedItems, conditionCode, fieldValues, notes, employeeId, status, createdAt, updatedAt]
       properties:
-        itemId: { type: string }
+        itemId: { type: string, format: uuid }
         itemVersion: { type: integer, minimum: 1 }
         includedItems: { $ref: "#/components/schemas/IncludedItemsAnswer" }
         conditionCode: { oneOf: [{ $ref: "#/components/schemas/ConditionCode" }, { type: "null" }] }
         fieldValues: { type: object, additionalProperties: { oneOf: [{ type: string }, { type: number }, { type: boolean }, { type: "null" }] } }
         notes: { type: string }
-        employeeId: { type: string }
+        employeeId: { type: string, minLength: 1 }
         status: { type: string, enum: [new, editing, restored, submitted, needs_review] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-    ListingItem:
-      type: object
-      required: [id, batchId, sourceRowId, sku, manufacturer, model, title, workflowStatus, version]
-      properties:
-        id: { type: string }
-        batchId: { type: string }
-        sourceRowId: { type: string }
-        sku: { type: string }
-        manufacturer: { type: string }
-        model: { type: string }
-        title: { type: string }
-        workflowStatus: { $ref: "#/components/schemas/ProcessingStatus" }
-        version: { type: integer, minimum: 1 }
-    EmployeeItemResponse:
-      type: object
-      required: [item]
-      properties:
-        item: { $ref: "#/components/schemas/ListingItem" }
-        draft: { oneOf: [{ $ref: "#/components/schemas/ItemDraft" }, { type: "null" }] }
-    SaveItemRequest:
-      type: object
-      required: [draft]
-      properties: { draft: { $ref: "#/components/schemas/ItemDraft" } }
+    SaveItemRequest: { type: object, required: [draft], properties: { draft: { $ref: "#/components/schemas/ItemDraft" } } }
     NeedsReviewRequest:
       type: object
       required: [draft, reason]
       properties:
         draft: { $ref: "#/components/schemas/ItemDraft" }
-        reason:
-          type: object
-          required: [code]
-          properties:
-            code: { type: string, enum: [inventory_discrepancy, item_damage, identity_uncertain, missing_information, workflow_exception, other] }
-            note: { type: string, maxLength: 2000 }
+        reason: { type: object, required: [code], properties: { code: { type: string, enum: [inventory_discrepancy, item_damage, identity_uncertain, missing_information, workflow_exception, other] }, note: { type: string, maxLength: 2000 } } }
     ItemWriteResponse:
       type: object
       required: [itemId, itemVersion, status, nextItemId, replayed]
-      properties:
-        itemId: { type: string }
-        itemVersion: { type: integer, minimum: 1 }
-        status: { type: string, enum: [completed, needs_review] }
-        nextItemId: { oneOf: [{ type: string }, { type: "null" }] }
-        replayed: { type: boolean }
+      properties: { itemId: { type: string, format: uuid }, itemVersion: { type: integer, minimum: 1 }, status: { type: string, enum: [completed, needs_review] }, nextItemId: { oneOf: [{ type: string, format: uuid }, { type: "null" }] }, replayed: { type: boolean } }
     ApiError:
       type: object
       required: [code, message, correlationId]
-      properties:
-        code: { type: string, enum: [VALIDATION_ERROR, CONFLICT, SYSTEM_ERROR, AI_PROCESSING_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, RATE_LIMITED] }
-        message: { type: string }
-        correlationId: { type: string }
-        fieldErrors: { type: object, additionalProperties: { type: array, items: { type: string } } }
-        currentVersion: { type: integer }
-
+      properties: { code: { type: string, enum: [VALIDATION_ERROR, CONFLICT, SYSTEM_ERROR, AI_PROCESSING_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, RATE_LIMITED] }, message: { type: string }, correlationId: { type: string, format: uuid }, fieldErrors: { type: object, additionalProperties: { type: array, items: { type: string } } }, currentVersion: { type: integer } }
+security: [{ bearerAuth: [] }]

@@ -1,6 +1,7 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import healthRouter from "./routes/health";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { errorHandler, notFound } from "./lib/errors";
@@ -37,6 +38,7 @@ app.use(cors({ origin(origin, callback) { callback(null, !origin || allowedOrigi
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT ?? "256kb", type: "application/json" }));
 app.use(express.urlencoded({ extended: false, limit: "64kb" }));
 
+app.use("/api", healthRouter);
 app.use("/api", requireIdentity(new DevelopmentIdentityProvider()), router);
 app.use(notFound);
 app.use(errorHandler);

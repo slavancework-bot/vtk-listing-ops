@@ -54,6 +54,11 @@ export interface Batch {
   version: number;
 }
 
+export function hasConsistentBatchCounts(batch: Batch): boolean {
+  return batch.totalItemCount >= 0 && batch.completedCount >= 0 && batch.reviewCount >= 0 && batch.pendingCount >= 0 &&
+    batch.completedCount + batch.reviewCount + batch.pendingCount === batch.totalItemCount;
+}
+
 export interface IncludedQuestion {
   id: IncludedQuestionId;
   label: string;
@@ -100,6 +105,10 @@ export interface ConditionalField {
   visibility?: VisibilityRule;
   validation?: FieldValidationRule;
   defaultValue?: string | number | boolean;
+}
+
+export function hasCompatibleFieldValidation(field: ConditionalField): boolean {
+  return !field.validation || field.validation.kind === field.type;
 }
 
 export interface ListingItem {

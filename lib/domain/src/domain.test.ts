@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateBatchProgress, canTransition, validateEmployeeAnswer } from "./index";
+import { calculateBatchProgress, canTransition, parsePersistedQuestionConfiguration, validateEmployeeAnswer } from "./index";
 import type { BatchId, ConditionalFieldId, EmployeeId, IncludedQuestionId, ItemDraft, ListingItem, ListingItemId } from "./index";
 
 const item: ListingItem = {
@@ -48,4 +48,10 @@ test("workflow transitions and processed progress are deterministic", () => {
   assert.equal(canTransition("ready_for_employee", "completed"), true);
   assert.equal(canTransition("exported", "in_progress"), false);
   assert.deepEqual(calculateBatchProgress(["completed", "needs_review", "pending"]), { totalItemCount: 3, completedCount: 1, reviewCount: 1, processedCount: 2, pendingCount: 1, percent: 67, complete: false });
+});
+
+test("persisted question configuration is validated before domain use", () => {
+  assert.deepEqual(parsePersistedQuestionConfiguration({ includedQuestions: [], conditionRequired: false, conditionalFields: [] }), { includedQuestions: [], conditionRequired: false, conditionalFields: [] });
+  assert.throws(() => parsePersistedQuestionConfiguration({ includedQuestions: [{ id: "duplicate", label: "One", displayOrder: 1, required: true }, { id: "duplicate", label: "Two", displayOrder: 2, required: false }], conditionRequired: false, conditionalFields: [] }), /unique/i);
+  assert.throws(() => parsePersistedQuestionConfiguration({ includedQuestions: [], conditionRequired: false, conditionalFields: [{ id: "bad", label: "Bad", type: "boolean", displayOrder: 1, required: false, editable: true, validation: { kind: "number" } }] }), /malformed|compatible/i);
 });
