@@ -2,9 +2,14 @@ import { sql } from "drizzle-orm";
 import { bigint, boolean, check, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 export const workflowStatus = pgEnum("workflow_status", ["pending", "ready_for_employee", "in_progress", "completed", "needs_review", "awaiting_processing", "processing_failed", "reviewed", "exported"]);
+export const batchSource = pgEnum("batch_source", ["csv", "manual", "api"]);
+export const reviewReasonCode = pgEnum("review_reason_code", ["inventory_discrepancy", "item_damage", "identity_uncertain", "missing_information", "workflow_exception", "other"]);
+export const processingJobStatus = pgEnum("processing_job_status", ["pending", "running", "completed", "failed", "cancelled"]);
+export const auditActorRole = pgEnum("audit_actor_role", ["employee", "reviewer", "admin", "system"]);
+export const auditAction = pgEnum("audit_action", ["employee_answer_saved", "needs_review_selected", "review_resolved", "processing_started", "processing_completed", "processing_failed", "listing_exported"]);
 
 export const batches = pgTable("batches", {
-  id: uuid("id").primaryKey().defaultRandom(), name: text("name").notNull(), source: text("source").notNull(),
+  id: uuid("id").primaryKey().defaultRandom(), name: text("name").notNull(), source: batchSource("source").notNull(),
   sourceFileMetadata: jsonb("source_file_metadata").$type<Record<string, unknown>>(), status: workflowStatus("status").notNull().default("pending"),
   version: integer("version").notNull().default(1), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [check("batches_version_positive", sql`${table.version} > 0`)]);
@@ -25,22 +30,22 @@ export const itemDrafts = pgTable("item_drafts", {
 
 export const reviewRecords = pgTable("review_records", {
   id: uuid("id").primaryKey().defaultRandom(), itemId: uuid("item_id").notNull().references(() => listingItems.id), employeeId: text("employee_id").notNull(), sourceItemVersion: integer("source_item_version").notNull(), resultingItemVersion: integer("resulting_item_version").notNull(),
-  reasonCode: text("reason_code").notNull(), note: text("note"), enteredAnswer: jsonb("entered_answer").$type<Record<string, unknown>>().notNull(), sourceState: jsonb("source_state").$type<Record<string, unknown>>().notNull(),
+  reasonCode: reviewReasonCode("reason_code").notNull(), note: text("note"), enteredAnswer: jsonb("entered_answer").$type<Record<string, unknown>>().notNull(), sourceState: jsonb("source_state").$type<Record<string, unknown>>().notNull(),
   resolved: boolean("resolved").notNull().default(false), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [check("review_records_versions_positive", sql`${table.sourceItemVersion} > 0 and ${table.resultingItemVersion} > 0`)]);
+}, (table) => [check("review_records_versions_ordered", sql`${table.sourceItemVersion} > 0 and ${table.resultingItemVersion} > ${table.sourceItemVersion}`)]);
 
 export const auditEvents = pgTable("audit_events", {
   id: uuid("id").primaryKey().defaultRandom(), itemId: uuid("item_id").references(() => listingItems.id), batchId: uuid("batch_id").references(() => batches.id), actorId: text("actor_id").notNull(),
-  actorRole: text("actor_role").notNull(), action: text("action").notNull(), previousStatus: workflowStatus("previous_status"), newStatus: workflowStatus("new_status"), correlationId: text("correlation_id").notNull(),
+  actorRole: auditActorRole("actor_role").notNull(), action: auditAction("action").notNull(), previousStatus: workflowStatus("previous_status"), newStatus: workflowStatus("new_status"), correlationId: text("correlation_id").notNull(),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [index("audit_events_item_created_idx").on(table.itemId, table.createdAt)]);
 
 export const processingJobs = pgTable("processing_jobs", {
-  id: uuid("id").primaryKey().defaultRandom(), itemId: uuid("item_id").notNull().references(() => listingItems.id), jobType: text("job_type").notNull(), status: text("status").notNull(),
+  id: uuid("id").primaryKey().defaultRandom(), itemId: uuid("item_id").notNull().references(() => listingItems.id), jobType: text("job_type").notNull(), status: processingJobStatus("status").notNull(),
   idempotencyKey: text("idempotency_key").notNull(), attemptCount: integer("attempt_count").notNull().default(0), promptId: text("prompt_id"), promptVersion: text("prompt_version"), model: text("model"),
   inputTokens: integer("input_tokens"), outputTokens: integer("output_tokens"), estimatedCostMicros: bigint("estimated_cost_micros", { mode: "number" }), latencyMs: integer("latency_ms"), errorCode: text("error_code"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [uniqueIndex("processing_jobs_idempotency_uq").on(table.idempotencyKey), check("processing_jobs_metrics_nonnegative", sql`${table.attemptCount} >= 0 and (${table.inputTokens} is null or ${table.inputTokens} >= 0) and (${table.outputTokens} is null or ${table.outputTokens} >= 0) and (${table.estimatedCostMicros} is null or ${table.estimatedCostMicros} >= 0) and (${table.latencyMs} is null or ${table.latencyMs} >= 0)`)]);
+}, (table) => [uniqueIndex("processing_jobs_idempotency_uq").on(table.idempotencyKey), check("processing_jobs_type_nonempty", sql`length(trim(${table.jobType})) > 0`), check("processing_jobs_metrics_nonnegative", sql`${table.attemptCount} >= 0 and (${table.inputTokens} is null or ${table.inputTokens} >= 0) and (${table.outputTokens} is null or ${table.outputTokens} >= 0) and (${table.estimatedCostMicros} is null or ${table.estimatedCostMicros} >= 0) and (${table.latencyMs} is null or ${table.latencyMs} >= 0)`)]);
 
 export const idempotencyRecords = pgTable("idempotency_records", {
   id: uuid("id").primaryKey().defaultRandom(), key: text("key").notNull(), actorId: text("actor_id").notNull(), operation: text("operation").notNull(), requestHash: text("request_hash").notNull(), responseStatus: integer("response_status").notNull(),

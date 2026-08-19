@@ -2,14 +2,16 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import healthRouter from "./routes/health";
-import router from "./routes";
+import router, { createApiRouter } from "./routes";
 import { logger } from "./lib/logger";
 import { errorHandler, notFound } from "./lib/errors";
-import { DevelopmentIdentityProvider, requireIdentity } from "./middleware/identity";
+import { DevelopmentIdentityProvider, requireIdentity, type IdentityProvider } from "./middleware/identity";
 import { correlationId, securityHeaders } from "./middleware/security";
+import type { ItemWriteService } from "./services/item-write-service";
 
-const app: Express = express();
-const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? "http://localhost:5173").split(",").map((origin) => origin.trim()).filter(Boolean);
+export function createApp(options: { identityProvider?: IdentityProvider; itemWriteService?: ItemWriteService } = {}): Express {
+  const app: Express = express();
+  const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? "http://localhost:5173").split(",").map((origin) => origin.trim()).filter(Boolean);
 
 app.disable("x-powered-by");
 app.use(correlationId);
@@ -39,8 +41,11 @@ app.use(express.json({ limit: process.env.JSON_BODY_LIMIT ?? "256kb", type: "app
 app.use(express.urlencoded({ extended: false, limit: "64kb" }));
 
 app.use("/api", healthRouter);
-app.use("/api", requireIdentity(new DevelopmentIdentityProvider()), router);
+app.use("/api", requireIdentity(options.identityProvider ?? new DevelopmentIdentityProvider()), options.itemWriteService ? createApiRouter(options.itemWriteService) : router);
 app.use(notFound);
 app.use(errorHandler);
 
-export default app;
+  return app;
+}
+
+export default createApp();

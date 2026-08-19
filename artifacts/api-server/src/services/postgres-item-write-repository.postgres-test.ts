@@ -6,6 +6,7 @@ import { db, pool } from "@workspace/db";
 import { PostgresItemWriteRepository } from "./postgres-item-write-repository";
 import { ItemWriteService } from "./item-write-service";
 import type { ItemDraft } from "@workspace/domain";
+import { ApiFault } from "../lib/errors";
 
 const migrationsFolder = fileURLToPath(new URL("../../../../lib/db/drizzle", import.meta.url));
 
@@ -17,7 +18,7 @@ before(async () => {
 after(async () => pool.end());
 
 async function seedItem(sourceRowId: string) {
-  const batch = await pool.query<{ id: string }>("insert into batches(name, source) values ($1, 'test') returning id", [`Synthetic ${sourceRowId}`]);
+  const batch = await pool.query<{ id: string }>("insert into batches(name, source) values ($1, 'csv') returning id", [`Synthetic ${sourceRowId}`]);
   const item = await pool.query<{ id: string }>("insert into listing_items(batch_id, source_row_id, sku, original_values, normalized_values, question_configuration, status) values ($1, $2, $3, '{}', '{\"manufacturer\":\"VTK\",\"model\":\"Synthetic\",\"title\":\"Synthetic item\"}', '{\"includedQuestions\":[],\"conditionRequired\":false,\"conditionalFields\":[]}', 'ready_for_employee') returning id", [batch.rows[0].id, sourceRowId, `SYN-${sourceRowId}`]);
   return item.rows[0].id;
 }
@@ -29,8 +30,8 @@ function draft(itemId: string, employeeId: string, notes = ""): ItemDraft {
 test("all seven Phase 1 tables and append-only audit protection exist", async () => {
   const tables = await pool.query<{ table_name: string }>("select table_name from information_schema.tables where table_schema='public' order by table_name");
   assert.deepEqual(tables.rows.map((row) => row.table_name).filter((name) => !name.startsWith("__drizzle")), ["audit_events", "batches", "idempotency_records", "item_drafts", "listing_items", "processing_jobs", "review_records"]);
-  const batch = await pool.query<{ id: string }>("insert into batches(name, source) values ('Synthetic', 'test') returning id");
-  await pool.query("insert into audit_events(batch_id, actor_id, actor_role, action, correlation_id) values ($1, 'test', 'employee', 'test', gen_random_uuid()::text)", [batch.rows[0].id]);
+  const batch = await pool.query<{ id: string }>("insert into batches(name, source) values ('Synthetic', 'csv') returning id");
+  await pool.query("insert into audit_events(batch_id, actor_id, actor_role, action, correlation_id) values ($1, 'test', 'employee', 'employee_answer_saved', gen_random_uuid()::text)", [batch.rows[0].id]);
   await assert.rejects(() => pool.query("update audit_events set action='changed'"), /append-only/);
   await assert.rejects(() => pool.query("delete from audit_events"), /append-only/);
 });
@@ -49,11 +50,17 @@ test("idempotency is actor plus operation plus key, expires safely, and rolls ba
   assert.equal(rows.rowCount, 0);
 });
 
-test("database constraints reject invalid versions and job metrics", async () => {
-  await assert.rejects(() => pool.query("insert into batches(name, source, version) values ('Bad', 'test', 0)"), /batches_version_positive/);
-  const batch = await pool.query<{ id: string }>("insert into batches(name, source) values ('Metrics', 'test') returning id");
+test("database constraints reject invalid versions, controlled domains, and job metrics", async () => {
+  await assert.rejects(() => pool.query("insert into batches(name, source, version) values ('Bad', 'csv', 0)"), /batches_version_positive/);
+  await assert.rejects(() => pool.query("insert into batches(name, source) values ('Bad source', 'live_sixbit')"), /batch_source/);
+  const batch = await pool.query<{ id: string }>("insert into batches(name, source) values ('Metrics', 'csv') returning id");
   const item = await pool.query<{ id: string }>("insert into listing_items(batch_id, source_row_id, sku, original_values, normalized_values, question_configuration) values ($1, '1', 'SYN-1', '{}', '{}', '{\"includedQuestions\":[],\"conditionRequired\":false,\"conditionalFields\":[]}') returning id", [batch.rows[0].id]);
   await assert.rejects(() => pool.query("insert into processing_jobs(item_id, job_type, status, idempotency_key, attempt_count) values ($1, 'test', 'pending', 'bad-metric', -1)", [item.rows[0].id]), /processing_jobs_metrics_nonnegative/);
+  await assert.rejects(() => pool.query("insert into processing_jobs(item_id, job_type, status, idempotency_key) values ($1, '', 'pending', 'blank-job')", [item.rows[0].id]), /processing_jobs_type_nonempty/);
+  await assert.rejects(() => pool.query("insert into processing_jobs(item_id, job_type, status, idempotency_key) values ($1, 'normalize', 'unknown', 'bad-status')", [item.rows[0].id]), /processing_job_status/);
+  await assert.rejects(() => pool.query("insert into review_records(item_id, employee_id, source_item_version, resulting_item_version, reason_code, entered_answer, source_state) values ($1, 'employee', 1, 2, 'uncontrolled', '{}', '{}')", [item.rows[0].id]), /review_reason_code/);
+  await assert.rejects(() => pool.query("insert into review_records(item_id, employee_id, source_item_version, resulting_item_version, reason_code, entered_answer, source_state) values ($1, 'employee', 2, 2, 'other', '{}', '{}')", [item.rows[0].id]), /review_records_versions_ordered/);
+  await assert.rejects(() => pool.query("insert into audit_events(item_id, actor_id, actor_role, action, correlation_id) values ($1, 'actor', 'outsider', 'employee_answer_saved', gen_random_uuid()::text)", [item.rows[0].id]), /audit_actor_role/);
 });
 
 test("concurrent identical writes produce one answer and one audit then replay", async () => {
@@ -67,8 +74,15 @@ test("concurrent identical writes produce one answer and one audit then replay",
 test("different keys and a stale tab cannot advance the same item twice", async () => {
   const itemId = await seedItem("competing-keys"); const service = new ItemWriteService(new PostgresItemWriteRepository()); const original = draft(itemId, "employee-lock");
   const outcomes = await Promise.allSettled([service.save({ idempotencyKey: "key-a", actorId: "employee-lock", correlationId: "00000000-0000-4000-8000-000000000011", draft: original }), service.save({ idempotencyKey: "key-b", actorId: "employee-lock", correlationId: "00000000-0000-4000-8000-000000000012", draft: original })]);
-  assert.equal(outcomes.filter((outcome) => outcome.status === "fulfilled").length, 1); assert.equal(outcomes.filter((outcome) => outcome.status === "rejected").length, 1);
+  assert.equal(outcomes.filter((outcome) => outcome.status === "fulfilled").length, 1);
+  const loser = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
+  assert.ok(loser); assert.ok(loser.reason instanceof ApiFault); assert.equal(loser.reason.status, 409); assert.equal(loser.reason.code, "CONFLICT"); assert.equal(loser.reason.details?.currentVersion, 2);
+  const final = await pool.query<{ status: string; version: number }>("select status, version from listing_items where id=$1", [itemId]);
+  assert.deepEqual(final.rows[0], { status: "completed", version: 2 });
+  assert.equal((await pool.query("select 1 from item_drafts where item_id=$1", [itemId])).rowCount, 1);
   assert.equal((await pool.query("select 1 from audit_events where item_id=$1", [itemId])).rowCount, 1);
+  assert.equal((await pool.query("select 1 from review_records where item_id=$1", [itemId])).rowCount, 0);
+  assert.equal((await pool.query("select 1 from idempotency_records where actor_id='employee-lock' and key in ('key-a','key-b')")).rowCount, 1);
 });
 
 test("same key is valid across actors but conflicts across items for one actor", async () => {
@@ -84,8 +98,32 @@ test("expired keys are reusable and mutation followed by failure rolls back", as
   await repository.executeIdempotent("expiring-key", "expiry-actor", "old", async () => response);
   await pool.query("update idempotency_records set created_at=now()-interval '2 days', expires_at=now()-interval '1 second' where actor_id='expiry-actor' and key='expiring-key'");
   await repository.executeIdempotent("expiring-key", "expiry-actor", "new", async () => response);
+  assert.equal((await pool.query("select 1 from idempotency_records where actor_id='expiry-actor' and key='expiring-key'")).rowCount, 1);
   const itemId = await seedItem("forced-rollback");
-  await assert.rejects(() => repository.executeIdempotent("forced-rollback", "rollback-actor", "hash", async (tx) => { const locked = await tx.getItemForUpdate(itemId); assert.ok(locked); await tx.saveAnswer(draft(itemId, "rollback-actor"), "completed"); throw new Error("forced after mutation"); }), /forced after mutation/);
+  await assert.rejects(() => repository.executeIdempotent("forced-rollback", "rollback-actor", "hash", async (tx) => {
+    const rollbackDraft = draft(itemId, "rollback-actor", "must roll back"); const locked = await tx.getItemForUpdate(itemId); assert.ok(locked);
+    await tx.saveAnswer(rollbackDraft, "needs_review"); assert.ok(tx.saveReview); await tx.saveReview(rollbackDraft, { code: "other", note: "rollback review" });
+    await tx.appendAudit({ itemId, actorId: "rollback-actor", action: "needs_review_selected", previousStatus: "ready_for_employee", newStatus: "needs_review", correlationId: "00000000-0000-4000-8000-000000000030" });
+    throw new Error("forced after all workflow mutations");
+  }), /forced after all workflow mutations/);
   const state = await pool.query<{ status: string; version: number }>("select status, version from listing_items where id=$1", [itemId]);
-  assert.deepEqual(state.rows[0], { status: "ready_for_employee", version: 1 }); assert.equal((await pool.query("select 1 from item_drafts where item_id=$1", [itemId])).rowCount, 0);
+  assert.deepEqual(state.rows[0], { status: "ready_for_employee", version: 1 });
+  assert.equal((await pool.query("select 1 from item_drafts where item_id=$1", [itemId])).rowCount, 0);
+  assert.equal((await pool.query("select 1 from review_records where item_id=$1", [itemId])).rowCount, 0);
+  assert.equal((await pool.query("select 1 from audit_events where item_id=$1", [itemId])).rowCount, 0);
+  assert.equal((await pool.query("select 1 from idempotency_records where actor_id='rollback-actor' and key='forced-rollback'")).rowCount, 0);
+});
+
+test("retry after committed response loss replays exactly without duplicate effects", async () => {
+  const itemId = await seedItem("response-loss"); const service = new ItemWriteService(new PostgresItemWriteRepository());
+  const input = { idempotencyKey: "response-loss", actorId: "response-loss-actor", correlationId: "00000000-0000-4000-8000-000000000040", draft: draft(itemId, "response-loss-actor", "persist this note") };
+  const authoritativeResponse = await service.save(input); // Commit succeeded; treat this returned response as lost by the client.
+  const retriedResponse = await service.save(input);
+  assert.deepEqual(retriedResponse, { ...authoritativeResponse, replayed: true });
+  const item = await pool.query<{ status: string; version: number }>("select status, version from listing_items where id=$1", [itemId]); assert.deepEqual(item.rows[0], { status: "completed", version: 2 });
+  const drafts = await pool.query<{ notes: string }>("select answer->>'notes' as notes from item_drafts where item_id=$1", [itemId]); assert.equal(drafts.rowCount, 1); assert.equal(drafts.rows[0].notes, "persist this note");
+  assert.equal((await pool.query("select 1 from review_records where item_id=$1", [itemId])).rowCount, 0);
+  assert.equal((await pool.query("select 1 from audit_events where item_id=$1", [itemId])).rowCount, 1);
+  assert.equal((await pool.query("select 1 from processing_jobs where item_id=$1", [itemId])).rowCount, 0);
+  assert.equal((await pool.query("select 1 from idempotency_records where actor_id='response-loss-actor' and key='response-loss'")).rowCount, 1);
 });

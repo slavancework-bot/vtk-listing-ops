@@ -21,6 +21,7 @@ paths:
         "400": { $ref: "#/components/responses/ApiError" }
         "401": { $ref: "#/components/responses/ApiError" }
         "403": { $ref: "#/components/responses/ApiError" }
+        "404": { $ref: "#/components/responses/ApiError" }
         "409": { $ref: "#/components/responses/ApiError" }
         "422": { $ref: "#/components/responses/ApiError" }
         "429": { $ref: "#/components/responses/ApiError" }
@@ -36,12 +37,17 @@ paths:
         "400": { $ref: "#/components/responses/ApiError" }
         "401": { $ref: "#/components/responses/ApiError" }
         "403": { $ref: "#/components/responses/ApiError" }
+        "404": { $ref: "#/components/responses/ApiError" }
         "409": { $ref: "#/components/responses/ApiError" }
         "422": { $ref: "#/components/responses/ApiError" }
         "429": { $ref: "#/components/responses/ApiError" }
         "500": { $ref: "#/components/responses/ApiError" }
 components:
-  securitySchemes: { bearerAuth: { type: http, scheme: bearer } }
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Production OIDC-style bearer contract. No trusted production provider is configured in Phase 1; production startup fails closed. The x-development-user adapter is nonproduction-only and is not a production authentication scheme.
   parameters:
     ItemId: { name: itemId, in: path, required: true, schema: { type: string, format: uuid } }
     IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }

@@ -42,6 +42,20 @@ describe("approved employee workflow", () => {
     expect(screen.getByText("NONE OF THESE ARE INCLUDED")).toBeInTheDocument();
   });
 
+  test("input, textarea, and select each guard numeric workflow shortcuts", async () => {
+    const user = userEvent.setup(); const { container } = render(<EmployeeScreen />);
+    const input = screen.getByRole("checkbox", { name: "AC Power Adapter" }); fireEvent.keyDown(input, { key: "1" }); expect(input).not.toBeChecked();
+    const textarea = document.createElement("textarea"); container.append(textarea); fireEvent.keyDown(textarea, { key: "1" }); expect(screen.queryByText("None included confirmed")).not.toBeInTheDocument();
+    for (let index = 0; index < 4; index += 1) await user.click(screen.getByTestId("btn-next-item"));
+    const select = screen.getByRole("combobox"); await user.selectOptions(select, "FALSE"); fireEvent.keyDown(select, { key: "1" }); expect(select).toHaveValue("FALSE"); expect(screen.queryByText("None included confirmed")).not.toBeInTheDocument();
+  });
+
+  test("Check Count TRUE and FALSE selections are retained during navigation", async () => {
+    const user = userEvent.setup(); render(<EmployeeScreen />); for (let index = 0; index < 4; index += 1) await user.click(screen.getByTestId("btn-next-item"));
+    const select = screen.getByRole("combobox"); expect(select).toHaveValue("TRUE"); await user.selectOptions(select, "FALSE");
+    await user.click(screen.getByTestId("btn-prev-item")); await user.click(screen.getByTestId("btn-next-item")); expect(screen.getByRole("combobox")).toHaveValue("FALSE");
+  });
+
   test("navigation retains answers and does not leak them to the next item", async () => {
     const user = userEvent.setup(); render(<EmployeeScreen />);
     await user.click(screen.getByText("AC Power Adapter"));

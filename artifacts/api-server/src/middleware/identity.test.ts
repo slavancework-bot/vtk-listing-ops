@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Request } from "express";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { DevelopmentIdentityProvider } from "./identity";
 
 function request(headers: Record<string, string> = {}) {
@@ -28,4 +30,13 @@ test("development identity is forbidden in production even when flagged", async 
   process.env.NODE_ENV = "production"; process.env.ALLOW_DEVELOPMENT_IDENTITY = "true";
   try { assert.equal(await new DevelopmentIdentityProvider().authenticate(request({ "x-development-user": "employee-1" })), null); }
   finally { if (oldNode === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = oldNode; if (oldFlag === undefined) delete process.env.ALLOW_DEVELOPMENT_IDENTITY; else process.env.ALLOW_DEVELOPMENT_IDENTITY = oldFlag; }
+});
+
+test("production server startup fails closed without a trusted provider", async () => {
+  const entry = fileURLToPath(new URL("../index.ts", import.meta.url));
+  const result = await new Promise<{ code: number | null; stderr: string }>((resolve) => {
+    const child = spawn(process.execPath, ["--import", "tsx", entry], { env: { ...process.env, NODE_ENV: "production", PORT: "39999", ALLOW_DEVELOPMENT_IDENTITY: "true" }, stdio: ["ignore", "ignore", "pipe"] });
+    let stderr = ""; child.stderr.on("data", (chunk) => { stderr += String(chunk); }); child.on("close", (code) => resolve({ code, stderr }));
+  });
+  assert.notEqual(result.code, 0); assert.match(result.stderr, /trusted identity|development identity adapter is forbidden/i);
 });

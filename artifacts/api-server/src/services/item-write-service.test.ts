@@ -29,6 +29,19 @@ test("Needs Review persists answers, reason, and one audit event", async () => {
   assert.equal(response.status, "needs_review"); assert.equal(repository.reviews.length, 1); assert.equal(repository.audits[0].action, "needs_review_selected");
 });
 
+test("in-memory idempotency matches production cross-actor and expiration behavior", async () => {
+  let now = 1_000; const otherItem = { ...item, id: "item-2" as ListingItemId }; const repository = new InMemoryItemWriteRepository([item, otherItem], () => now); const service = new ItemWriteService(repository);
+  await service.save({ idempotencyKey: "shared", actorId: "employee-1", correlationId: "request-1", draft });
+  await service.save({ idempotencyKey: "shared", actorId: "employee-2", correlationId: "request-2", draft: { ...draft, itemId: otherItem.id, employeeId: "employee-2" as EmployeeId } });
+  assert.equal(repository.audits.length, 2);
+  const expiringRepo = new InMemoryItemWriteRepository([item], () => now); const expiringService = new ItemWriteService(expiringRepo);
+  await expiringService.save({ idempotencyKey: "expiring", actorId: "employee-1", correlationId: "request-3", draft });
+  now += 24 * 60 * 60 * 1000 + 1;
+  expiringRepo.items.set(item.id, item);
+  const reused = await expiringService.save({ idempotencyKey: "expiring", actorId: "employee-1", correlationId: "request-4", draft: { ...draft, notes: "new payload" } });
+  assert.equal(reused.replayed, false); assert.equal(expiringRepo.audits.length, 2);
+});
+
 for (const terminalStatus of ["completed", "reviewed", "exported", "processing_failed"] as const) {
   test(`rejects an illegal ${terminalStatus} to completed employee transition`, async () => {
     const repository = new InMemoryItemWriteRepository([{ ...item, workflowStatus: terminalStatus }]);

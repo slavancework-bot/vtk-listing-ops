@@ -96,17 +96,17 @@ export default function ReviewerScreen() {
           
           <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-2 pb-24">
             <ReviewerQASection 
-              category="Computers/Tablets & Networking > Enterprise Networking, Servers > Routers > Enterprise Routers"
-              alternateCategories={["Computers > Networking > Wired Routers"]}
+              category="MOCK CATEGORY — NOT VERIFIED — Enterprise Routers"
+              alternateCategories={["MOCK ALTERNATE — SAMPLE ONLY — Wired Routers"]}
               itemSpecifics={{
-                "Brand": "Cisco",
-                "Model": "C1111-4P",
-                "MPN": "C1111-4P",
-                "Form Factor": "Desktop",
-                "Type": "Enterprise Router"
+                "Brand": "MOCK — Cisco",
+                "Model": "MOCK — C1111-4P",
+                "MPN": "MOCK — C1111-4P",
+                "Form Factor": "SAMPLE ONLY — Desktop",
+                "Type": "SAMPLE ONLY — Enterprise Router"
               }}
               missingSpecifics={["Number of Ports", "Interface"]}
-              proposedTitle="Cisco C1111-4P 4-Port Dual GE WAN Router — FACTORY SEALED"
+              proposedTitle="MOCK TITLE — NOT VERIFIED — Cisco C1111-4P Router"
               titleLength={59}
               description="Prototype preview only. Production listing text must be derived from validated employee answers, trusted source data, approved deterministic rules, and schema-validated model output."
               qaResults={qaResults}
@@ -114,10 +114,10 @@ export default function ReviewerScreen() {
             
             <SixBitPreview 
               data={{
-                "Action": "ADD",
-                "Condition": "New",
-                "ProductID": "C1111-4P",
-                "SKU": "VTK-00142",
+                "Action": "MOCK — ADD — NOT VERIFIED",
+                "Condition": "MOCK — NOT VERIFIED",
+                "ProductID": "SAMPLE ONLY — C1111-4P",
+                "SKU": "SAMPLE ONLY — VTK-00142",
                 "Price": "NOT VERIFIED",
                 "Qty": "NOT VERIFIED"
               }}

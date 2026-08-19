@@ -8,14 +8,17 @@ export class InMemoryItemWriteRepository implements ItemWriteRepository {
   readonly answers = new Map<string, ItemDraft>();
   readonly reviews: Array<{ draft: ItemDraft; reason: ReviewReason }> = [];
   readonly audits: AuditEventInput[] = [];
-  private readonly idempotency = new Map<string, { actorId: string; requestHash: string; response: ItemWriteResponse }>();
+  private readonly idempotency = new Map<string, { requestHash: string; response: ItemWriteResponse; expiresAt: number }>();
 
-  constructor(items: ListingItem[] = []) { items.forEach((item) => this.items.set(item.id, item)); }
+  constructor(items: ListingItem[] = [], private readonly now: () => number = Date.now) { items.forEach((item) => this.items.set(item.id, item)); }
   async executeIdempotent(key: string, actorId: string, requestHash: string, work: (transaction: ItemWriteTransaction) => Promise<ItemWriteResponse>): Promise<ItemWriteResponse> {
-    const prior = this.idempotency.get(key);
-    if (prior) {
-      if (prior.actorId !== actorId || prior.requestHash !== requestHash) throw new (await import("../lib/errors")).ApiFault(409, "CONFLICT", "The idempotency key was already used for a different request.");
-      return { ...prior.response, replayed: true };
+    const scopedKey = `${actorId}:employee_item_write:${key}`;
+    const prior = this.idempotency.get(scopedKey);
+    if (prior && prior.expiresAt <= this.now()) this.idempotency.delete(scopedKey);
+    const active = this.idempotency.get(scopedKey);
+    if (active) {
+      if (active.requestHash !== requestHash) throw new (await import("../lib/errors")).ApiFault(409, "CONFLICT", "The idempotency key was already used for a different request.");
+      return { ...active.response, replayed: true };
     }
     const tx: ItemWriteTransaction = {
       getItemForUpdate: async (itemId) => this.items.get(itemId) ?? null,
@@ -31,7 +34,7 @@ export class InMemoryItemWriteRepository implements ItemWriteRepository {
       nextPendingItemId: async (batchId) => [...this.items.values()].find((item) => item.batchId === batchId && ["pending", "ready_for_employee", "in_progress"].includes(item.workflowStatus))?.id ?? null,
     };
     const response = await work(tx);
-    this.idempotency.set(key, { actorId, requestHash, response });
+    this.idempotency.set(scopedKey, { requestHash, response, expiresAt: this.now() + 24 * 60 * 60 * 1000 });
     return response;
   }
 }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateBatchProgress, canTransition, parsePersistedQuestionConfiguration, validateEmployeeAnswer } from "./index";
+import { calculateBatchProgress, canTransition, parsePersistedItemDraft, parsePersistedListingJson, parsePersistedQuestionConfiguration, validateEmployeeAnswer } from "./index";
 import type { BatchId, ConditionalFieldId, EmployeeId, IncludedQuestionId, ItemDraft, ListingItem, ListingItemId } from "./index";
 
 const item: ListingItem = {
@@ -54,4 +54,22 @@ test("persisted question configuration is validated before domain use", () => {
   assert.deepEqual(parsePersistedQuestionConfiguration({ includedQuestions: [], conditionRequired: false, conditionalFields: [] }), { includedQuestions: [], conditionRequired: false, conditionalFields: [] });
   assert.throws(() => parsePersistedQuestionConfiguration({ includedQuestions: [{ id: "duplicate", label: "One", displayOrder: 1, required: true }, { id: "duplicate", label: "Two", displayOrder: 2, required: false }], conditionRequired: false, conditionalFields: [] }), /unique/i);
   assert.throws(() => parsePersistedQuestionConfiguration({ includedQuestions: [], conditionRequired: false, conditionalFields: [{ id: "bad", label: "Bad", type: "boolean", displayOrder: 1, required: false, editable: true, validation: { kind: "number" } }] }), /malformed|compatible/i);
+});
+
+test("persisted conditional configuration rejects invalid bounds, defaults, references, positions, and visibility types", () => {
+  const base = { includedQuestions: [], conditionRequired: false };
+  assert.throws(() => parsePersistedQuestionConfiguration({ ...base, conditionalFields: [{ id: "text", kind: "custom", type: "text", label: "Text", displayOrder: 1, required: false, editable: true, validation: { kind: "text", minLength: 5, maxLength: 2 } }] }), /inverted text bounds/);
+  assert.throws(() => parsePersistedQuestionConfiguration({ ...base, conditionalFields: [{ id: "number", kind: "custom", type: "number", label: "Number", displayOrder: 1, required: false, editable: true, validation: { kind: "number", min: 10, max: 1 } }] }), /inverted numeric bounds/);
+  assert.throws(() => parsePersistedQuestionConfiguration({ ...base, conditionalFields: [{ id: "flag", kind: "custom", type: "boolean", label: "Flag", displayOrder: 1, required: false, editable: true, defaultValue: "yes" }] }), /default value/);
+  assert.throws(() => parsePersistedQuestionConfiguration({ ...base, conditionalFields: [{ id: "dependent", kind: "custom", type: "text", label: "Dependent", displayOrder: 1, required: false, editable: true, visibility: { fieldId: "missing", equals: true } }] }), /unknown visibility field/);
+  assert.throws(() => parsePersistedQuestionConfiguration({ ...base, conditionalFields: [{ id: "flag", kind: "custom", type: "boolean", label: "Flag", displayOrder: 1, required: false, editable: true }, { id: "dependent", kind: "custom", type: "text", label: "Dependent", displayOrder: 2, required: false, editable: true, visibility: { fieldId: "flag", equals: "yes" } }] }), /visibility value/);
+  assert.throws(() => parsePersistedQuestionConfiguration({ includedQuestions: [{ id: "a", label: "A", displayOrder: 1, required: false, shortcutPosition: 1 }, { id: "b", label: "B", displayOrder: 1, required: false, shortcutPosition: 1 }], conditionRequired: false, conditionalFields: [] }), /display positions|shortcut positions/);
+});
+
+test("other persisted JSON and stored drafts fail safely when malformed", () => {
+  assert.deepEqual(parsePersistedListingJson({ manufacturer: "VTK", model: "M", title: "T" }, { source: 1 }, ["warning"]).warnings, ["warning"]);
+  assert.throws(() => parsePersistedListingJson({ manufacturer: 1, model: "M", title: "T" }, {}, []), /normalized values/);
+  assert.throws(() => parsePersistedListingJson({ manufacturer: "VTK", model: "M", title: "T" }, {}, [7]), /warnings/);
+  assert.equal(parsePersistedItemDraft(draft({ includedItems: { selectedQuestionIds: [], explicitlyNone: true } })).status, "editing");
+  assert.throws(() => parsePersistedItemDraft({ ...draft(), fieldValues: { bad: [] } }), /item draft/);
 });
