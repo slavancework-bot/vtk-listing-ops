@@ -6,6 +6,8 @@ interface BatchProgressProps {
   totalItems: number;
   completedCount?: number;
   reviewCount?: number;
+  processedCount?: number;
+  onHelp?: () => void;
   onNext?: () => void;
   onPrev?: () => void;
 }
@@ -16,10 +18,14 @@ export function BatchProgress({
   totalItems, 
   completedCount = 0,
   reviewCount = 0,
+  processedCount = completedCount + reviewCount,
+  onHelp,
   onNext, 
   onPrev 
 }: BatchProgressProps) {
-  const progressPercent = Math.round((completedCount / totalItems) * 100);
+  const progressPercent = totalItems > 0
+    ? Math.round((processedCount / totalItems) * 100)
+    : 0;
   
   return (
     <div className="flex items-center justify-between w-full h-12 px-6 bg-white border-b border-gray-200 shrink-0">
@@ -51,13 +57,13 @@ export function BatchProgress({
         </button>
       </div>
       
-      <div className="flex items-center justify-end w-[320px] gap-4">
-        {completedCount > 0 ? (
-          <span className="text-xs text-emerald-600 font-medium">{completedCount} done</span>
-        ) : null}
-        {reviewCount > 0 ? (
-          <span className="text-xs text-amber-600 font-medium">{reviewCount} review</span>
-        ) : null}
+      <div className="flex items-center justify-end w-[420px] gap-3">
+        <div className="flex items-center gap-2 text-xs whitespace-nowrap">
+          <span className="text-gray-500">Processed</span>
+          <span className="font-semibold text-gray-800">{processedCount} of {totalItems}</span>
+        </div>
+        <span className="text-xs text-emerald-600 font-medium whitespace-nowrap">{completedCount} Completed</span>
+        <span className="text-xs text-amber-600 font-medium whitespace-nowrap">{reviewCount} Review</span>
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500 font-medium">Progress</span>
           <div className="w-16 h-2.5 bg-gray-100 rounded-full overflow-hidden">
@@ -68,7 +74,11 @@ export function BatchProgress({
           </div>
           <span className="text-xs font-bold text-gray-700">{progressPercent}%</span>
         </div>
-        <button className="border border-gray-300 text-gray-600 text-xs px-2 py-0.5 rounded-full hover:bg-gray-50 flex items-center gap-1 font-medium">
+        <button
+          onClick={onHelp}
+          className="border border-gray-300 text-gray-600 text-xs px-2 py-0.5 rounded-full hover:bg-gray-50 flex items-center gap-1 font-medium"
+          aria-label="Open keyboard shortcuts"
+        >
           <span className="px-1 text-[10px] font-mono opacity-60">F1</span> Shortcuts
         </button>
         <button className="p-1 text-gray-600 hover:bg-gray-100 rounded">

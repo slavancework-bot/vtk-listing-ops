@@ -11,6 +11,7 @@ interface StatusPanelProps {
   includedDecisionMade: boolean;
   missingItems: string[];
   savedStatus?: 'pending' | 'complete' | 'needs-review';
+  fieldSummaries?: Array<{ label: string; value: string }>;
 }
 
 const CONDITION_LABELS: Record<string, string> = {
@@ -29,7 +30,8 @@ export function StatusPanel({
   totalQuestions,
   includedDecisionMade,
   missingItems,
-  savedStatus
+  savedStatus,
+  fieldSummaries = []
 }: StatusPanelProps) {
   
   return (
@@ -71,6 +73,13 @@ export function StatusPanel({
             </span>
           </div>
         )}
+
+        {fieldSummaries.map((field) => (
+          <div key={field.label} className="flex items-center justify-between gap-2 text-sm bg-gray-50 p-3 rounded-md border border-gray-100">
+            <span className="text-gray-500">{field.label}:</span>
+            <span className="text-gray-900 font-medium">{field.value}</span>
+          </div>
+        ))}
       </div>
 
       <div className="mt-4 pt-4 border-t border-gray-100">

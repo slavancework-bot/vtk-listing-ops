@@ -1,4 +1,9 @@
-import { ConditionalFieldConfig } from "../data/mockData";
+interface ConditionalFieldConfig {
+  id: string;
+  label: string;
+  type: 'text' | 'number';
+  placeholder?: string;
+}
 
 interface ConditionalFieldProps {
   config: ConditionalFieldConfig;

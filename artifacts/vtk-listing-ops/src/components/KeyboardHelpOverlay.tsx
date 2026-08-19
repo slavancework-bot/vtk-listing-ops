@@ -1,38 +1,86 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { X, Keyboard } from "lucide-react";
+import { CONDITION_SHORTCUTS, FIXED_SHORTCUTS } from "../data/keyboardShortcuts";
 
 interface KeyboardHelpOverlayProps {
   isOpen: boolean;
   onClose: () => void;
+  includedShortcuts: string[];
 }
 
-export function KeyboardHelpOverlay({ isOpen, onClose }: KeyboardHelpOverlayProps) {
-  
+export function KeyboardHelpOverlay({ isOpen, onClose, includedShortcuts }: KeyboardHelpOverlayProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (!isOpen) return;
-    
+
+    previousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    dialogRef.current?.focus();
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        e.preventDefault();
         onClose();
+        return;
+      }
+
+      if (e.key !== "Tab" || !dialogRef.current) return;
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+      if (focusable.length === 0) {
+        e.preventDefault();
+        dialogRef.current.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!focusable.includes(document.activeElement as HTMLElement)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
     };
     
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      previousFocusRef.current?.focus();
+      previousFocusRef.current = null;
+    };
   }, [isOpen, onClose]);
   
   if (!isOpen) return null;
   
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-md shadow-xl border border-gray-200 w-full max-w-lg overflow-hidden">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="keyboard-help-title"
+        tabIndex={-1}
+        className="bg-white rounded-md shadow-xl border border-gray-200 w-full max-w-lg overflow-hidden outline-none"
+      >
         <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50">
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <h2 id="keyboard-help-title" className="text-lg font-bold text-gray-900 flex items-center gap-2">
             <Keyboard size={20} className="text-gray-500" />
             Keyboard Shortcuts
           </h2>
           <button 
             onClick={onClose}
+            aria-label="Close keyboard shortcuts"
             className="p-1 hover:bg-gray-200 rounded text-gray-500 transition-colors"
           >
             <X size={20} />
@@ -41,13 +89,13 @@ export function KeyboardHelpOverlay({ isOpen, onClose }: KeyboardHelpOverlayProp
         
         <div className="p-6">
           <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-            <ShortcutRow keys={["1", "-", "9"]} label="Toggle items 1-9" />
-            <ShortcutRow keys={["0"]} label="Toggle item 10" />
-            <ShortcutRow keys={["A", "B", "C", "D"]} label="Select Condition" />
-            <ShortcutRow keys={["Enter"]} label="Save & Next" />
-            <ShortcutRow keys={["F2"]} label="Needs Review" />
-            <ShortcutRow keys={["?"]} label="Show this help" />
-            <ShortcutRow keys={["Esc"]} label="Close modals / help" />
+            {includedShortcuts.length > 0 && (
+              <ShortcutRow keys={includedShortcuts} label="Toggle included items" />
+            )}
+            <ShortcutRow keys={[...CONDITION_SHORTCUTS]} label="Select Condition" />
+            {FIXED_SHORTCUTS.map((shortcut) => (
+              <ShortcutRow key={shortcut.label} keys={[...shortcut.keys]} label={shortcut.label} />
+            ))}
           </div>
           
           <div className="mt-8 p-3 bg-blue-50 border border-blue-100 rounded text-sm text-blue-800">

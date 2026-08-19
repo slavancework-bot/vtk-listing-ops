@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import { IncludedItem } from "../data/mockData";
+import { getIncludedShortcut } from "../data/keyboardShortcuts";
 
 interface IncludedQuestionCardProps {
   item: IncludedItem;
@@ -16,13 +17,12 @@ export function IncludedQuestionCard({
   onToggle,
   showError,
 }: IncludedQuestionCardProps) {
-  const shortcutNumber = index < 9 ? index + 1 : index === 9 ? 0 : null;
+  const shortcutNumber = getIncludedShortcut(index);
   
   return (
-    <button
-      onClick={onToggle}
+    <label
       className={`
-        relative w-full flex items-center gap-3 p-3 text-left rounded-md transition-all duration-150
+        relative w-full flex items-center gap-3 p-3 text-left rounded-md transition-all duration-150 cursor-pointer
         border
         ${isSelected 
           ? "border-emerald-600 bg-emerald-50/50" 
@@ -30,10 +30,19 @@ export function IncludedQuestionCard({
             ? "border-destructive bg-destructive/5 animate-pulse"
             : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
         }
+        focus-within:ring-2 focus-within:ring-emerald-500 focus-within:ring-offset-1
       `}
       data-testid={`btn-include-${item.id}`}
     >
-      <div className={`
+      <input
+        type="checkbox"
+        checked={isSelected}
+        onChange={onToggle}
+        aria-label={item.label}
+        className="sr-only"
+      />
+
+      <div aria-hidden="true" className={`
         flex items-center justify-center w-5 h-5 rounded-sm border-2 shrink-0
         ${isSelected
           ? "bg-emerald-600 border-emerald-600 text-white"
@@ -57,6 +66,6 @@ export function IncludedQuestionCard({
           {shortcutNumber}
         </div>
       )}
-    </button>
+    </label>
   );
 }
