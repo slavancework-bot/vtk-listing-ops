@@ -105,7 +105,7 @@ export default function ReviewerScreen() {
               missingSpecifics={["Number of Ports", "Interface"]}
               proposedTitle="Cisco C1111-4P 4-Port Dual GE WAN Router — FACTORY SEALED"
               titleLength={59}
-              description="New Factory Sealed Cisco 1111 4-Port Dual GE WAN Router (C1111-4P). Guaranteed authentic and ready to deploy in your enterprise environment. Includes all factory original accessories."
+              description="Prototype preview only. Production listing text must be derived from validated employee answers, trusted source data, approved deterministic rules, and schema-validated model output."
               qaResults={qaResults}
             />
             
