@@ -82,7 +82,7 @@ test("same key is valid across actors but conflicts across items for one actor",
 test("expired keys are reusable and mutation followed by failure rolls back", async () => {
   const repository = new PostgresItemWriteRepository(); const response = { itemId: "00000000-0000-4000-8000-000000000020", itemVersion: 2, status: "completed" as const, nextItemId: null, replayed: false };
   await repository.executeIdempotent("expiring-key", "expiry-actor", "old", async () => response);
-  await pool.query("update idempotency_records set expires_at=now()-interval '1 second' where actor_id='expiry-actor' and key='expiring-key'");
+  await pool.query("update idempotency_records set created_at=now()-interval '2 days', expires_at=now()-interval '1 second' where actor_id='expiry-actor' and key='expiring-key'");
   await repository.executeIdempotent("expiring-key", "expiry-actor", "new", async () => response);
   const itemId = await seedItem("forced-rollback");
   await assert.rejects(() => repository.executeIdempotent("forced-rollback", "rollback-actor", "hash", async (tx) => { const locked = await tx.getItemForUpdate(itemId); assert.ok(locked); await tx.saveAnswer(draft(itemId, "rollback-actor"), "completed"); throw new Error("forced after mutation"); }), /forced after mutation/);
