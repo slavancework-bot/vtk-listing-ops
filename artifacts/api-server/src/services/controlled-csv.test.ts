@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFile } from "node:fs/promises";
+import { ApiFault } from "../lib/errors";
+import { CONTROLLED_HEADERS, MAX_IMPORT_BYTES, escapeCsvOutputValue, parseControlledCsv, safeFilename } from "./controlled-csv";
+
+const fixtureUrl=new URL("../../../../fixtures/phase2-controlled-eight-scenarios-v1.csv",import.meta.url);
+test("controlled fixture parses eight deterministic scenarios and preserves original values",async()=>{const content=await readFile(fixtureUrl,"utf8");const result=parseControlledCsv({filename:"fixture.csv",mimeType:"text/csv",content});assert.equal(result.rows.length,8);assert.equal(result.rows[0].original.scenario,"A");assert.equal(result.rows[7].normalized.scenario,"H");assert.match(result.checksum,/^[a-f0-9]{64}$/);});
+test("upload boundary rejects extension, MIME, size, schema, headers, malformed rows, and null bytes",async()=>{const content=await readFile(fixtureUrl,"utf8");const invalid=[()=>parseControlledCsv({filename:"fixture.exe",mimeType:"text/csv",content}),()=>parseControlledCsv({filename:"fixture.csv",mimeType:"application/octet-stream",content}),()=>parseControlledCsv({filename:"fixture.csv",mimeType:"text/csv",content:"x".repeat(MAX_IMPORT_BYTES+1)}),()=>parseControlledCsv({filename:"fixture.csv",mimeType:"text/csv",content:content.replace("vtk-controlled-test-v1","wrong")}),()=>parseControlledCsv({filename:"fixture.csv",mimeType:"text/csv",content:content.replace(CONTROLLED_HEADERS[0],"wrong")}),()=>parseControlledCsv({filename:"fixture.csv",mimeType:"text/csv",content:`${CONTROLLED_HEADERS.join(",")}\nvtk-controlled-test-v1,\"unterminated`}),()=>parseControlledCsv({filename:"fixture.csv",mimeType:"text/csv",content:`${content}\0`})];for(const attempt of invalid)assert.throws(attempt,ApiFault);});
+test("filename metadata is reduced to a safe leaf and cannot control storage keys",()=>{assert.equal(safeFilename("../../secrets/evil name.csv"),"evil_name.csv");assert.equal(safeFilename("..\\..\\escape.csv"),"escape.csv");});
+test("future spreadsheet CSV output neutralizes formula prefixes",()=>{for(const value of ["=1+1"," +SUM(A1:A2)","-2+3","@cmd"])assert.equal(escapeCsvOutputValue(value)[0],"'");assert.equal(escapeCsvOutputValue("safe"),"safe");});

@@ -1,7 +1,7 @@
 openapi: 3.1.0
-info: { title: Api, version: 0.1.1, description: Implemented Phase 1 API surface only }
+info: { title: VTK Listing Ops API, version: 0.2.0, description: Executable controlled nonproduction integration API }
 servers: [{ url: /api }]
-tags: [{ name: health }, { name: employee }]
+tags: [{ name: health }, { name: batches }, { name: employee }]
 paths:
   /healthz:
     get:
@@ -10,6 +10,60 @@ paths:
       security: []
       responses:
         "200": { description: Healthy, content: { application/json: { schema: { $ref: "#/components/schemas/HealthStatus" } } } }
+  /readyz:
+    get:
+      operationId: readinessCheck
+      tags: [health]
+      security: []
+      responses: { "200": { description: Ready, content: { application/json: { schema: { $ref: "#/components/schemas/HealthStatus" } } } }, "503": { $ref: "#/components/responses/ApiError" } }
+  /batches/import:
+    post:
+      operationId: importBatch
+      tags: [batches]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ImportBatchRequest" } } } }
+      responses: { "201": { description: Imported or replayed, content: { application/json: { schema: { $ref: "#/components/schemas/ImportBatchResult" } } } }, "400": { $ref: "#/components/responses/ApiError" }, "401": { $ref: "#/components/responses/ApiError" }, "403": { $ref: "#/components/responses/ApiError" }, "409": { $ref: "#/components/responses/ApiError" }, "413": { $ref: "#/components/responses/ApiError" }, "415": { $ref: "#/components/responses/ApiError" }, "422": { $ref: "#/components/responses/ApiError" } }
+  /batches:
+    get:
+      operationId: listBatches
+      tags: [batches]
+      responses: { "200": { description: Available batches, content: { application/json: { schema: { type: object, required: [batches], properties: { batches: { type: array, items: { $ref: "#/components/schemas/Batch" } } } } } } }, "401": { $ref: "#/components/responses/ApiError" } }
+  /batches/{batchId}:
+    parameters: [{ $ref: "#/components/parameters/BatchId" }]
+    get:
+      operationId: getBatch
+      tags: [batches]
+      responses: { "200": { description: Batch, content: { application/json: { schema: { $ref: "#/components/schemas/Batch" } } } }, "404": { $ref: "#/components/responses/ApiError" } }
+  /batches/{batchId}/progress:
+    parameters: [{ $ref: "#/components/parameters/BatchId" }]
+    get:
+      operationId: getBatchProgress
+      tags: [batches]
+      responses: { "200": { description: Authoritative progress, content: { application/json: { schema: { $ref: "#/components/schemas/BatchProgress" } } } }, "404": { $ref: "#/components/responses/ApiError" } }
+  /batches/{batchId}/items:
+    parameters: [{ $ref: "#/components/parameters/BatchId" }]
+    get:
+      operationId: listBatchItems
+      tags: [batches]
+      responses: { "200": { description: Batch items, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: "#/components/schemas/ListingItem" } } } } } } } }
+  /batches/{batchId}/next-item:
+    parameters: [{ $ref: "#/components/parameters/BatchId" }]
+    get:
+      operationId: getNextPendingItem
+      tags: [employee]
+      responses: { "200": { description: Next item, content: { application/json: { schema: { type: object, required: [item], properties: { item: { oneOf: [{ $ref: "#/components/schemas/ListingItem" }, { type: "null" }] } } } } } } }
+  /items/{itemId}:
+    parameters: [{ $ref: "#/components/parameters/ItemId" }]
+    get:
+      operationId: getItem
+      tags: [employee]
+      responses: { "200": { description: Item and actor draft, content: { application/json: { schema: { $ref: "#/components/schemas/ListingItem" } } } }, "404": { $ref: "#/components/responses/ApiError" } }
+  /items/{itemId}/draft:
+    parameters: [{ $ref: "#/components/parameters/ItemId" }]
+    put:
+      operationId: saveItemDraft
+      tags: [employee]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SaveItemRequest" } } } }
+      responses: { "200": { description: Draft saved, content: { application/json: { schema: { $ref: "#/components/schemas/DraftWriteResponse" } } } }, "400": { $ref: "#/components/responses/ApiError" }, "403": { $ref: "#/components/responses/ApiError" }, "404": { $ref: "#/components/responses/ApiError" }, "409": { $ref: "#/components/responses/ApiError" } }
   /items/{itemId}/answer:
     parameters: [{ $ref: "#/components/parameters/ItemId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
     put:
@@ -50,11 +104,18 @@ components:
       description: Production OIDC-style bearer contract. No trusted production provider is configured in Phase 1; production startup fails closed. The x-development-user adapter is nonproduction-only and is not a production authentication scheme.
   parameters:
     ItemId: { name: itemId, in: path, required: true, schema: { type: string, format: uuid } }
+    BatchId: { name: batchId, in: path, required: true, schema: { type: string, format: uuid } }
     IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
   responses:
     ApiError: { description: Structured API error, content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
   schemas:
     HealthStatus: { type: object, required: [status], properties: { status: { type: string } } }
+    ImportBatchRequest: { type: object, additionalProperties: false, required: [importKey, filename, mimeType, content], properties: { importKey: { type: string, minLength: 1, maxLength: 200 }, filename: { type: string, minLength: 1, maxLength: 255 }, mimeType: { type: string, minLength: 1, maxLength: 100 }, content: { type: string, minLength: 1 }, name: { type: string, minLength: 1, maxLength: 200 } } }
+    ImportBatchResult: { type: object, required: [batchId, replayed, itemCount, checksum], properties: { batchId: { type: string, format: uuid }, replayed: { type: boolean }, itemCount: { type: integer, minimum: 1 }, checksum: { type: string, pattern: "^[a-f0-9]{64}$" } } }
+    BatchProgress: { type: object, required: [totalItemCount, completedCount, reviewCount, processedCount, pendingCount, percent, complete], properties: { totalItemCount: { type: integer, minimum: 0 }, completedCount: { type: integer, minimum: 0 }, reviewCount: { type: integer, minimum: 0 }, processedCount: { type: integer, minimum: 0 }, pendingCount: { type: integer, minimum: 0 }, percent: { type: integer, minimum: 0, maximum: 100 }, complete: { type: boolean } } }
+    Batch: { type: object, additionalProperties: true, required: [id, name, status, progress], properties: { id: { type: string, format: uuid }, name: { type: string }, status: { type: string }, progress: { $ref: "#/components/schemas/BatchProgress" } } }
+    ListingItem: { type: object, additionalProperties: true, required: [id, batchId, sku, status, version], properties: { id: { type: string, format: uuid }, batchId: { type: string, format: uuid }, sku: { type: string }, status: { type: string }, version: { type: integer, minimum: 1 }, draft: { oneOf: [{ $ref: "#/components/schemas/ItemDraft" }, { type: "null" }] } } }
+    DraftWriteResponse: { type: object, required: [itemId, itemVersion, draftVersion, status], properties: { itemId: { type: string, format: uuid }, itemVersion: { type: integer, minimum: 1 }, draftVersion: { type: integer, minimum: 1 }, status: { type: string, enum: [editing] } } }
     ConditionCode: { type: string, enum: [A, B, C, D] }
     IncludedItemsAnswer:
       type: object
@@ -88,5 +149,5 @@ components:
     ApiError:
       type: object
       required: [code, message, correlationId]
-      properties: { code: { type: string, enum: [VALIDATION_ERROR, CONFLICT, SYSTEM_ERROR, AI_PROCESSING_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, RATE_LIMITED] }, message: { type: string }, correlationId: { type: string, format: uuid }, fieldErrors: { type: object, additionalProperties: { type: array, items: { type: string } } }, currentVersion: { type: integer } }
+      properties: { code: { type: string, enum: [VALIDATION_ERROR, INVALID_CSV, INVALID_ENCODING, INVALID_FILE_TYPE, UPLOAD_TOO_LARGE, ROW_LIMIT_EXCEEDED, UNEXPECTED_HEADERS, UNSUPPORTED_SCHEMA_VERSION, CONFLICT, SYSTEM_ERROR, AI_PROCESSING_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, RATE_LIMITED] }, message: { type: string }, correlationId: { type: string, format: uuid }, fieldErrors: { type: object, additionalProperties: { type: array, items: { type: string } } }, currentVersion: { type: integer } }
 security: [{ bearerAuth: [] }]

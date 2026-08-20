@@ -6,13 +6,20 @@ export const batchSource = pgEnum("batch_source", ["csv", "manual", "api"]);
 export const reviewReasonCode = pgEnum("review_reason_code", ["inventory_discrepancy", "item_damage", "identity_uncertain", "missing_information", "workflow_exception", "other"]);
 export const processingJobStatus = pgEnum("processing_job_status", ["pending", "running", "completed", "failed", "cancelled"]);
 export const auditActorRole = pgEnum("audit_actor_role", ["employee", "reviewer", "admin", "system"]);
-export const auditAction = pgEnum("audit_action", ["employee_answer_saved", "needs_review_selected", "review_resolved", "processing_started", "processing_completed", "processing_failed", "listing_exported"]);
+export const auditAction = pgEnum("audit_action", ["batch_import_created", "batch_import_failed", "item_draft_saved", "employee_answer_saved", "needs_review_selected", "batch_completed", "review_resolved", "processing_started", "processing_completed", "processing_failed", "listing_exported"]);
 
 export const batches = pgTable("batches", {
   id: uuid("id").primaryKey().defaultRandom(), name: text("name").notNull(), source: batchSource("source").notNull(),
+  createdBy: text("created_by").notNull().default("system"), importKey: text("import_key"), sourceChecksum: text("source_checksum"), schemaVersion: text("schema_version"),
   sourceFileMetadata: jsonb("source_file_metadata").$type<Record<string, unknown>>(), status: workflowStatus("status").notNull().default("pending"),
   version: integer("version").notNull().default(1), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [check("batches_version_positive", sql`${table.version} > 0`)]);
+}, (table) => [check("batches_version_positive", sql`${table.version} > 0`), uniqueIndex("batches_creator_import_key_uq").on(table.createdBy, table.importKey)]);
+
+export const importedFiles = pgTable("imported_files", {
+  id: uuid("id").primaryKey().defaultRandom(), batchId: uuid("batch_id").references(() => batches.id), uploaderId: text("uploader_id").notNull(),
+  originalFilename: text("original_filename").notNull(), safeFilename: text("safe_filename").notNull(), mimeType: text("mime_type").notNull(), checksum: text("checksum").notNull(),
+  sizeBytes: integer("size_bytes").notNull(), storageKey: text("storage_key").notNull(), status: text("status").notNull(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [uniqueIndex("imported_files_storage_key_uq").on(table.storageKey), check("imported_files_size_positive", sql`${table.sizeBytes} > 0`), check("imported_files_status_valid", sql`${table.status} in ('stored','imported','failed')`)]);
 
 export const listingItems = pgTable("listing_items", {
   id: uuid("id").primaryKey().defaultRandom(), batchId: uuid("batch_id").notNull().references(() => batches.id), sourceRowId: text("source_row_id").notNull(), sourceRowNumber: integer("source_row_number"),

@@ -1,8 +1,10 @@
 import { logger } from "./lib/logger";
 
-if (process.env.NODE_ENV === "production") {
+if (process.env.NODE_ENV === "production" || process.env.APP_ENV === "production") {
   throw new Error("A production IdentityProvider adapter must be configured before deployment; the development identity adapter is forbidden.");
 }
+if (process.env.APP_ENV !== "staging" && process.env.APP_ENV !== "development") throw new Error("APP_ENV must explicitly be staging or development.");
+if(process.env.APP_ENV==="staging"&&(process.env.ALLOW_NONPRODUCTION_DATABASE!=="true"||!/(test|staging|nonprod)/i.test(process.env.DATABASE_URL??"")))throw new Error("Staging requires an explicitly allowed database URL whose database name identifies it as test, staging, or nonproduction.");
 
 const { default: app } = await import("./app");
 

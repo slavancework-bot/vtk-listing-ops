@@ -5,5 +5,8 @@
  * Executable controlled nonproduction integration API
  * OpenAPI spec version: 0.2.0
  */
+import type { ListingItem } from "./listingItem";
 
-export type ApiErrorFieldErrors = { [key: string]: string[] };
+export type GetNextPendingItem200 = {
+  item: ListingItem | null;
+};

@@ -9,6 +9,8 @@ import { createApp } from "../app";
 import type { IdentityProvider } from "../middleware/identity";
 import { InMemoryItemWriteRepository } from "../services/in-memory-item-write-repository";
 import { ItemWriteService } from "../services/item-write-service";
+import type { Phase2Service } from "../services/phase2-service";
+import { parseControlledCsv } from "../services/controlled-csv";
 
 const answerId = "00000000-0000-4000-8000-000000000101";
 const reviewId = "00000000-0000-4000-8000-000000000102";
@@ -31,7 +33,8 @@ class HeaderIdentityProvider implements IdentityProvider {
 const repository = new InMemoryItemWriteRepository([item(answerId), item(reviewId), item(staleId, 2), item(invalidId, 1, true)]);
 let server: Server; let baseUrl: string;
 before(async () => {
-  const app = createApp({ identityProvider: new HeaderIdentityProvider(), itemWriteService: new ItemWriteService(repository) });
+  const phase2Service={importBatch:async(input:{filename:string;mimeType:string;content:string})=>{parseControlledCsv(input);throw new Error("persistence should not be reached after file validation");}} as unknown as Phase2Service;
+  const app = createApp({ identityProvider: new HeaderIdentityProvider(), itemWriteService: new ItemWriteService(repository), phase2Service });
   await new Promise<void>((resolve) => { server = app.listen(0, "127.0.0.1", () => resolve()); });
   const address = server.address(); assert.ok(address && typeof address === "object"); baseUrl = `http://127.0.0.1:${address.port}/api`;
 });
@@ -45,8 +48,8 @@ async function expectFault(response: Response, status: number, code: string) { a
 
 test("OpenAPI executable operations exactly match the mounted callable surface", async () => {
   const spec = await readFile(new URL("../../../../lib/api-spec/openapi.yaml", import.meta.url), "utf8");
-  assert.deepEqual([...spec.matchAll(/^  (\/[^:]+):$/gm)].map((match) => match[1]), ["/healthz", "/items/{itemId}/answer", "/items/{itemId}/needs-review"]);
-  assert.match(spec, /operationId: healthCheck/); assert.match(spec, /operationId: saveItemAnswer/); assert.match(spec, /operationId: markItemNeedsReview/);
+  assert.deepEqual([...spec.matchAll(/^  (\/[^:]+):$/gm)].map((match) => match[1]), ["/healthz","/readyz","/batches/import","/batches","/batches/{batchId}","/batches/{batchId}/progress","/batches/{batchId}/items","/batches/{batchId}/next-item","/items/{itemId}","/items/{itemId}/draft","/items/{itemId}/answer","/items/{itemId}/needs-review"]);
+  for(const operation of ["healthCheck","readinessCheck","importBatch","listBatches","getBatch","getBatchProgress","listBatchItems","getNextPendingItem","getItem","saveItemDraft","saveItemAnswer","markItemNeedsReview"])assert.match(spec,new RegExp(`operationId: ${operation}`));
   assert.equal((await fetch(`${baseUrl}/healthz`)).status, 200);
 });
 
@@ -78,4 +81,10 @@ test("write rate limit returns structured 429", async () => {
   let response: Response | undefined;
   for (let index = 0; index < 121; index += 1) response = await fetch(`${baseUrl}/items/not-a-uuid/answer`, { method: "PUT", headers: headers("rate-user", "employee", `rate-${index}`), body: "{}" });
   assert.ok(response); await expectFault(response, 429, "RATE_LIMITED");
+});
+
+test("Phase 2 routes enforce generated validation, roles, UUIDs, and upload type before persistence",async()=>{
+  await expectFault(await fetch(`${baseUrl}/batches/not-a-uuid/progress`,{headers:{"x-test-user":"employee-2","x-test-role":"employee"}}),400,"VALIDATION_ERROR");
+  await expectFault(await fetch(`${baseUrl}/batches/import`,{method:"POST",headers:headers("reviewer-2","reviewer","import-role"),body:JSON.stringify({importKey:"role",filename:"x.csv",mimeType:"text/csv",content:"x"})}),403,"FORBIDDEN");
+  await expectFault(await fetch(`${baseUrl}/batches/import`,{method:"POST",headers:headers("employee-2","employee","import-type"),body:JSON.stringify({importKey:"bad-type",filename:"../../payload.exe",mimeType:"application/octet-stream",content:"not csv"})}),415,"INVALID_FILE_TYPE");
 });

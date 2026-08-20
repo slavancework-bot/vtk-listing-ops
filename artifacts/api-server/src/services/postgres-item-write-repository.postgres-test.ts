@@ -7,6 +7,9 @@ import { PostgresItemWriteRepository } from "./postgres-item-write-repository";
 import { ItemWriteService } from "./item-write-service";
 import type { ItemDraft } from "@workspace/domain";
 import { ApiFault } from "../lib/errors";
+import { readFile } from "node:fs/promises";
+import { Phase2Service } from "./phase2-service";
+import type { FileStorage } from "./file-storage";
 
 const migrationsFolder = fileURLToPath(new URL("../../../../lib/db/drizzle", import.meta.url));
 
@@ -29,7 +32,7 @@ function draft(itemId: string, employeeId: string, notes = ""): ItemDraft {
 
 test("all seven Phase 1 tables and append-only audit protection exist", async () => {
   const tables = await pool.query<{ table_name: string }>("select table_name from information_schema.tables where table_schema='public' order by table_name");
-  assert.deepEqual(tables.rows.map((row) => row.table_name).filter((name) => !name.startsWith("__drizzle")), ["audit_events", "batches", "idempotency_records", "item_drafts", "listing_items", "processing_jobs", "review_records"]);
+  assert.deepEqual(tables.rows.map((row) => row.table_name).filter((name) => !name.startsWith("__drizzle")), ["audit_events", "batches", "idempotency_records", "imported_files", "item_drafts", "listing_items", "processing_jobs", "review_records"]);
   const batch = await pool.query<{ id: string }>("insert into batches(name, source) values ('Synthetic', 'csv') returning id");
   await pool.query("insert into audit_events(batch_id, actor_id, actor_role, action, correlation_id) values ($1, 'test', 'employee', 'employee_answer_saved', gen_random_uuid()::text)", [batch.rows[0].id]);
   await assert.rejects(() => pool.query("update audit_events set action='employee_answer_saved'"), /append-only/);
@@ -129,4 +132,27 @@ test("retry after committed response loss replays exactly without duplicate effe
   assert.equal((await pool.query("select 1 from audit_events where item_id=$1", [itemId])).rowCount, 1);
   assert.equal((await pool.query("select 1 from processing_jobs where item_id=$1", [itemId])).rowCount, 0);
   assert.equal((await pool.query("select 1 from idempotency_records where actor_id='response-loss-actor' and key='response-loss'")).rowCount, 1);
+});
+
+test("controlled import, draft restore, final persistence, and authoritative progress cross PostgreSQL", async () => {
+  const stored = new Map<string,Buffer>(); let sequence=0;
+  const storage:FileStorage={store:async(content)=>{const key=`test-${++sequence}.csv`;stored.set(key,content);return{key,remove:async()=>{stored.delete(key);}};}};
+  const phase2=new Phase2Service(storage);
+  const content=await readFile(new URL("../../../../fixtures/phase2-controlled-eight-scenarios-v1.csv",import.meta.url),"utf8");
+  const input={actorId:"development-employee",role:"employee",importKey:"phase2-e2e-import",filename:"../controlled.csv",mimeType:"text/csv",content,correlationId:"00000000-0000-4000-8000-000000000050"};
+  const imported=await phase2.importBatch(input); assert.equal(imported.itemCount,8);assert.equal(imported.replayed,false);assert.equal(stored.size,1);
+  const replayed=await phase2.importBatch(input);assert.equal(replayed.batchId,imported.batchId);assert.equal(replayed.replayed,true);assert.equal(stored.size,1);
+  await assert.rejects(()=>phase2.importBatch({...input,content:`${content}\n`,importKey:input.importKey}), (error:unknown)=>error instanceof ApiFault&&error.status===409);
+  const duplicateRows=content.replace(",B,VTK-C1111-4P-14",",A,VTK-C1111-4P-14");await assert.rejects(()=>phase2.importBatch({...input,content:duplicateRows,importKey:"forced-partial-failure"}),/listing_items_batch_source_row_uq/);assert.equal(stored.size,1,"failed transaction removes its newly stored file");assert.equal((await pool.query("select 1 from batches where import_key='forced-partial-failure'")).rowCount,0);
+  const items=await phase2.listItems(imported.batchId,"development-employee");assert.equal(items.length,8);const first=items[0];
+  const firstDraft=draft(first.id,"development-employee","server-backed draft");await phase2.saveDraft(first.id,"development-employee",firstDraft as unknown as Record<string,unknown>,"00000000-0000-4000-8000-000000000051");
+  const restored=await phase2.getItem(first.id,"development-employee");assert.equal((restored.draft as Record<string,unknown>).notes,"server-backed draft");
+  const writes=new ItemWriteService(new PostgresItemWriteRepository());await writes.save({idempotencyKey:"phase2-final",actorId:"development-employee",correlationId:"00000000-0000-4000-8000-000000000052",draft:firstDraft});
+  const current=await phase2.getProgress(imported.batchId);assert.deepEqual(current,{totalItemCount:8,completedCount:1,reviewCount:0,processedCount:1,pendingCount:7,percent:13,complete:false});
+  await assert.rejects(()=>phase2.saveDraft(first.id,"development-employee",firstDraft as unknown as Record<string,unknown>,"00000000-0000-4000-8000-000000000053"),(error:unknown)=>error instanceof ApiFault&&error.status===409);
+  assert.equal((await phase2.getItem(first.id,"other-employee")).draft,null,"drafts remain actor-scoped");
+  const second=items[1];const competing={...draft(second.id,"development-employee"),conditionCode:"A" as const};const race=await Promise.allSettled([writes.save({idempotencyKey:"phase2-save-race",actorId:"development-employee",correlationId:"00000000-0000-4000-8000-000000000054",draft:competing}),writes.save({idempotencyKey:"phase2-review-race",actorId:"development-employee",correlationId:"00000000-0000-4000-8000-000000000055",draft:competing,reviewReason:{code:"workflow_exception"}})]);assert.equal(race.filter((result)=>result.status==="fulfilled").length,1);assert.ok(race.find((result)=>result.status==="rejected"));assert.equal((await pool.query("select 1 from audit_events where item_id=$1",[second.id])).rowCount,1);assert.ok(["completed","needs_review"].includes((await pool.query<{status:string}>("select status from listing_items where id=$1",[second.id])).rows[0].status));
+  assert.equal((await pool.query("select 1 from audit_events where batch_id=$1 and action='batch_import_created'",[imported.batchId])).rowCount,1);
+  assert.equal((await pool.query("select 1 from audit_events where item_id=$1 and action='item_draft_saved'",[first.id])).rowCount,1);
+  const file=await pool.query<{safe_filename:string;storage_key:string}>("select safe_filename,storage_key from imported_files where batch_id=$1",[imported.batchId]);assert.equal(file.rows[0].safe_filename,"controlled.csv");assert.equal(file.rows[0].storage_key,"test-1.csv");
 });

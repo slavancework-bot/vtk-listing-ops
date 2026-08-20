@@ -5,13 +5,13 @@
  * Executable controlled nonproduction integration API
  * OpenAPI spec version: 0.2.0
  */
-import type { ItemWriteResponseStatus } from "./itemWriteResponseStatus";
+import type { DraftWriteResponseStatus } from "./draftWriteResponseStatus";
 
-export interface ItemWriteResponse {
+export interface DraftWriteResponse {
   itemId: string;
   /** @minimum 1 */
   itemVersion: number;
-  status: ItemWriteResponseStatus;
-  nextItemId: string | null;
-  replayed: boolean;
+  /** @minimum 1 */
+  draftVersion: number;
+  status: DraftWriteResponseStatus;
 }
