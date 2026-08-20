@@ -5,7 +5,7 @@
  * Executable controlled nonproduction integration API
  * OpenAPI spec version: 0.2.0
  */
-import type { ListingItem } from "./listingItem";
+import type { ListingItem } from './listingItem';
 
 export type GetNextPendingItem200 = {
   item: ListingItem | null;

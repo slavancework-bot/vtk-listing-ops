@@ -5,7 +5,7 @@
  * Executable controlled nonproduction integration API
  * OpenAPI spec version: 0.2.0
  */
-import type { BatchProgress } from "./batchProgress";
+import type { BatchProgress } from './batchProgress';
 
 export interface Batch {
   id: string;
@@ -13,4 +13,4 @@ export interface Batch {
   status: string;
   progress: BatchProgress;
   [key: string]: unknown;
-}
+ }

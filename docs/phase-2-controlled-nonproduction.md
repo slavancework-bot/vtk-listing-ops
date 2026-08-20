@@ -12,7 +12,19 @@ Phase 3 may introduce a separate versioned SixBit adapter behind the same import
 
 ## Draft and navigation policy
 
-The Employee screen uses a short debounced draft save while editing and forces a draft save before manual navigation. A final Save & Next or Needs Review is authoritative: the screen advances only after the server confirms the write. Draft and final writes carry the loaded item version; stale sessions receive `409 CONFLICT` and cannot overwrite newer work. Progress is always reloaded from persisted item status.
+The Employee screen uses a short debounced draft save while editing and forces a draft save before manual navigation. Draft reads return `draftVersion`; saves require `expectedDraftVersion`, with zero meaning create. Every changed save increments the draft version, and a stale tab receives `409 CONFLICT`. Per-item save chains order autosave, navigation, and final/review work so an older snapshot cannot land after a newer or final state.
+
+A final Save & Next or Needs Review is authoritative: the screen advances only after the server confirms the write. One idempotency key is retained for each logical operation across transport retries and cleared only after authoritative reconciliation. A later progress-refresh failure is reported as a reconciliation warning rather than misclassifying the committed write. Final item transactions lock the parent batch before counting pending items; the batch changes to completed once and emits one `batch_completed` event.
+
+## Resource access policy
+
+Employees may enumerate, read, draft, complete, or mark Needs Review only for batches they created (`batches.created_by`) and their items. Admin may read and write all batches. Reviewer may read all batches/items but cannot call employee write or next-work operations. Unauthorized known IDs return non-enumerating `404`; a body employee ID never grants access.
+
+## Storage and parser policy
+
+The filesystem root must be a dedicated operator-controlled nonproduction directory, not a symlink/reparse point. UUID keys are generated internally, containment checked, and created exclusively. Failed imports remove the staged file.
+
+The bounded CSV parser supports BOM/CRLF, commas, escaped quotes, and newlines inside quoted fields while preserving the 256 KiB and 1,000-row limits. CI timings are operational observations, not an SLA; no cache, queue, or other performance infrastructure was added.
 
 ## Provider owner actions
 

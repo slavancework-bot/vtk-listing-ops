@@ -6,11 +6,12 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export type ConditionCode = (typeof ConditionCode)[keyof typeof ConditionCode];
+export type ConditionCode = typeof ConditionCode[keyof typeof ConditionCode];
+
 
 export const ConditionCode = {
-  A: "A",
-  B: "B",
-  C: "C",
-  D: "D",
+  A: 'A',
+  B: 'B',
+  C: 'C',
+  D: 'D',
 } as const;

@@ -5,8 +5,8 @@
  * Executable controlled nonproduction integration API
  * OpenAPI spec version: 0.2.0
  */
-import type { ApiErrorCode } from "./apiErrorCode";
-import type { ApiErrorFieldErrors } from "./apiErrorFieldErrors";
+import type { ApiErrorCode } from './apiErrorCode';
+import type { ApiErrorFieldErrors } from './apiErrorFieldErrors';
 
 export interface ApiError {
   code: ApiErrorCode;

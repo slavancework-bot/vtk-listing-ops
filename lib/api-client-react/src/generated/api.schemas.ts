@@ -11,26 +11,26 @@ export interface HealthStatus {
 
 export interface ImportBatchRequest {
   /**
-   * @minLength 1
-   * @maxLength 200
-   */
+     * @minLength 1
+     * @maxLength 200
+     */
   importKey: string;
   /**
-   * @minLength 1
-   * @maxLength 255
-   */
+     * @minLength 1
+     * @maxLength 255
+     */
   filename: string;
   /**
-   * @minLength 1
-   * @maxLength 100
-   */
+     * @minLength 1
+     * @maxLength 100
+     */
   mimeType: string;
   /** @minLength 1 */
   content: string;
   /**
-   * @minLength 1
-   * @maxLength 200
-   */
+     * @minLength 1
+     * @maxLength 200
+     */
   name?: string;
 }
 
@@ -55,9 +55,9 @@ export interface BatchProgress {
   /** @minimum 0 */
   pendingCount: number;
   /**
-   * @minimum 0
-   * @maximum 100
-   */
+     * @minimum 0
+     * @maximum 100
+     */
   percent: number;
   complete: boolean;
 }
@@ -68,36 +68,35 @@ export interface Batch {
   status: string;
   progress: BatchProgress;
   [key: string]: unknown;
-}
+ }
 
 export interface IncludedItemsAnswer {
   selectedQuestionIds: string[];
   explicitlyNone: boolean;
 }
 
-export type ConditionCode = (typeof ConditionCode)[keyof typeof ConditionCode];
+export type ConditionCode = typeof ConditionCode[keyof typeof ConditionCode];
+
 
 export const ConditionCode = {
-  A: "A",
-  B: "B",
-  C: "C",
-  D: "D",
+  A: 'A',
+  B: 'B',
+  C: 'C',
+  D: 'D',
 } as const;
 
-export type ItemDraftStatus =
-  (typeof ItemDraftStatus)[keyof typeof ItemDraftStatus];
+export type ItemDraftStatus = typeof ItemDraftStatus[keyof typeof ItemDraftStatus];
+
 
 export const ItemDraftStatus = {
-  new: "new",
-  editing: "editing",
-  restored: "restored",
-  submitted: "submitted",
-  needs_review: "needs_review",
+  new: 'new',
+  editing: 'editing',
+  restored: 'restored',
+  submitted: 'submitted',
+  needs_review: 'needs_review',
 } as const;
 
-export type ItemDraftFieldValues = {
-  [key: string]: string | number | boolean | null;
-};
+export type ItemDraftFieldValues = {[key: string]: string | number | boolean | null};
 
 export interface ItemDraft {
   itemId: string;
@@ -121,15 +120,17 @@ export interface ListingItem {
   status: string;
   /** @minimum 1 */
   version: number;
+  /** @minimum 0 */
+  draftVersion: number;
   draft?: ItemDraft | null;
   [key: string]: unknown;
-}
+ }
 
-export type DraftWriteResponseStatus =
-  (typeof DraftWriteResponseStatus)[keyof typeof DraftWriteResponseStatus];
+export type DraftWriteResponseStatus = typeof DraftWriteResponseStatus[keyof typeof DraftWriteResponseStatus];
+
 
 export const DraftWriteResponseStatus = {
-  editing: "editing",
+  editing: 'editing',
 } as const;
 
 export interface DraftWriteResponse {
@@ -145,16 +146,22 @@ export interface SaveItemRequest {
   draft: ItemDraft;
 }
 
-export type NeedsReviewRequestReasonCode =
-  (typeof NeedsReviewRequestReasonCode)[keyof typeof NeedsReviewRequestReasonCode];
+export interface SaveDraftRequest {
+  draft: ItemDraft;
+  /** @minimum 0 */
+  expectedDraftVersion: number;
+}
+
+export type NeedsReviewRequestReasonCode = typeof NeedsReviewRequestReasonCode[keyof typeof NeedsReviewRequestReasonCode];
+
 
 export const NeedsReviewRequestReasonCode = {
-  inventory_discrepancy: "inventory_discrepancy",
-  item_damage: "item_damage",
-  identity_uncertain: "identity_uncertain",
-  missing_information: "missing_information",
-  workflow_exception: "workflow_exception",
-  other: "other",
+  inventory_discrepancy: 'inventory_discrepancy',
+  item_damage: 'item_damage',
+  identity_uncertain: 'identity_uncertain',
+  missing_information: 'missing_information',
+  workflow_exception: 'workflow_exception',
+  other: 'other',
 } as const;
 
 export type NeedsReviewRequestReason = {
@@ -168,12 +175,12 @@ export interface NeedsReviewRequest {
   reason: NeedsReviewRequestReason;
 }
 
-export type ItemWriteResponseStatus =
-  (typeof ItemWriteResponseStatus)[keyof typeof ItemWriteResponseStatus];
+export type ItemWriteResponseStatus = typeof ItemWriteResponseStatus[keyof typeof ItemWriteResponseStatus];
+
 
 export const ItemWriteResponseStatus = {
-  completed: "completed",
-  needs_review: "needs_review",
+  completed: 'completed',
+  needs_review: 'needs_review',
 } as const;
 
 export interface ItemWriteResponse {
@@ -185,27 +192,28 @@ export interface ItemWriteResponse {
   replayed: boolean;
 }
 
-export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];
+export type ApiErrorCode = typeof ApiErrorCode[keyof typeof ApiErrorCode];
+
 
 export const ApiErrorCode = {
-  VALIDATION_ERROR: "VALIDATION_ERROR",
-  INVALID_CSV: "INVALID_CSV",
-  INVALID_ENCODING: "INVALID_ENCODING",
-  INVALID_FILE_TYPE: "INVALID_FILE_TYPE",
-  UPLOAD_TOO_LARGE: "UPLOAD_TOO_LARGE",
-  ROW_LIMIT_EXCEEDED: "ROW_LIMIT_EXCEEDED",
-  UNEXPECTED_HEADERS: "UNEXPECTED_HEADERS",
-  UNSUPPORTED_SCHEMA_VERSION: "UNSUPPORTED_SCHEMA_VERSION",
-  CONFLICT: "CONFLICT",
-  SYSTEM_ERROR: "SYSTEM_ERROR",
-  AI_PROCESSING_ERROR: "AI_PROCESSING_ERROR",
-  UNAUTHORIZED: "UNAUTHORIZED",
-  FORBIDDEN: "FORBIDDEN",
-  NOT_FOUND: "NOT_FOUND",
-  RATE_LIMITED: "RATE_LIMITED",
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  INVALID_CSV: 'INVALID_CSV',
+  INVALID_ENCODING: 'INVALID_ENCODING',
+  INVALID_FILE_TYPE: 'INVALID_FILE_TYPE',
+  UPLOAD_TOO_LARGE: 'UPLOAD_TOO_LARGE',
+  ROW_LIMIT_EXCEEDED: 'ROW_LIMIT_EXCEEDED',
+  UNEXPECTED_HEADERS: 'UNEXPECTED_HEADERS',
+  UNSUPPORTED_SCHEMA_VERSION: 'UNSUPPORTED_SCHEMA_VERSION',
+  CONFLICT: 'CONFLICT',
+  SYSTEM_ERROR: 'SYSTEM_ERROR',
+  AI_PROCESSING_ERROR: 'AI_PROCESSING_ERROR',
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  FORBIDDEN: 'FORBIDDEN',
+  NOT_FOUND: 'NOT_FOUND',
+  RATE_LIMITED: 'RATE_LIMITED',
 } as const;
 
-export type ApiErrorFieldErrors = { [key: string]: string[] };
+export type ApiErrorFieldErrors = {[key: string]: string[]};
 
 export interface ApiError {
   code: ApiErrorCode;

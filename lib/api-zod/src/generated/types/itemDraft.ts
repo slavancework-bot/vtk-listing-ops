@@ -5,10 +5,10 @@
  * Executable controlled nonproduction integration API
  * OpenAPI spec version: 0.2.0
  */
-import type { ConditionCode } from "./conditionCode";
-import type { IncludedItemsAnswer } from "./includedItemsAnswer";
-import type { ItemDraftFieldValues } from "./itemDraftFieldValues";
-import type { ItemDraftStatus } from "./itemDraftStatus";
+import type { ConditionCode } from './conditionCode';
+import type { IncludedItemsAnswer } from './includedItemsAnswer';
+import type { ItemDraftFieldValues } from './itemDraftFieldValues';
+import type { ItemDraftStatus } from './itemDraftStatus';
 
 export interface ItemDraft {
   itemId: string;

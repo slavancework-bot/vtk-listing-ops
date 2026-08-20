@@ -129,11 +129,16 @@ export default function EmployeeScreen() {
   const [validationErrors, setValidationErrors] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const transitionLockRef = useRef(false);
+  const draftVersionsRef=useRef(new Map<string,number>());
+  const draftSaveChainsRef=useRef(new Map<string,Promise<void>>());
+  const operationKeysRef=useRef(new Map<string,{key:string;payload:string}>());
 
   const TOTAL_ITEMS = scenarios.length;
   const scenario = scenarios[currentIndex];
 
-  useEffect(()=>{if(!requestedBatchId)return;loadBatch(requestedBatchId).then(({batch,items})=>{setBatchName(batch.name);setServerProgress(batch.progress);setScenarios(items.map(toScenario));setVersions(items.map((item)=>item.version));const restored=new Map<number,ItemDraft>();items.forEach((item,index)=>{if(item.draft)restored.set(index,{...item.draft,itemVersion:item.version,status:item.status==="completed"?"submitted":item.status==="needs_review"?"needs_review":"restored"});});itemStatesRef.current=restored;setItemStates(restored);setBatchComplete(batch.progress.complete);}).catch((error)=>setLoadError(error instanceof Error?error.message:"Unable to load batch."));},[requestedBatchId]);
+  useEffect(()=>{if(!requestedBatchId)return;loadBatch(requestedBatchId).then(({batch,items})=>{setBatchName(batch.name);setServerProgress(batch.progress);setScenarios(items.map(toScenario));setVersions(items.map((item)=>item.version));const restored=new Map<number,ItemDraft>();const draftVersions=new Map<string,number>();items.forEach((item,index)=>{draftVersions.set(item.id,item.draftVersion);if(item.draft)restored.set(index,{...item.draft,itemVersion:item.version,status:item.status==="completed"?"submitted":item.status==="needs_review"?"needs_review":"restored"});});draftVersionsRef.current=draftVersions;itemStatesRef.current=restored;setItemStates(restored);setBatchComplete(batch.progress.complete);}).catch((error)=>setLoadError(error instanceof Error?error.message:"Unable to load batch."));},[requestedBatchId]);
+
+  const persistDraft=useCallback((draft:ItemDraft)=>{const prior=(draftSaveChainsRef.current.get(draft.itemId)??Promise.resolve()).catch(()=>undefined);const next=prior.then(async()=>{const result=await saveDraft(draft.itemId,draft,draftVersionsRef.current.get(draft.itemId)??0);draftVersionsRef.current.set(draft.itemId,result.draftVersion);});draftSaveChainsRef.current.set(draft.itemId,next);return next.finally(()=>{if(draftSaveChainsRef.current.get(draft.itemId)===next)draftSaveChainsRef.current.delete(draft.itemId);});},[]);
 
   function getItemState(index: number, scenarioData: ItemScenario, stateMap = itemStates): ItemDraft {
     return stateMap.get(index) ?? createDefaultItemDraft(scenarioData, versions[index] ?? 1);
@@ -204,16 +209,16 @@ export default function EmployeeScreen() {
   const navigateTo = useCallback(async (targetIndex: number) => {
     if (transitionLockRef.current || targetIndex < 0 || targetIndex >= TOTAL_ITEMS) return;
     const leaving=itemStatesRef.current.get(currentIndex);
-    if(serverMode&&leaving?.status==="editing"){try{await saveDraft(leaving.itemId,leaving);}catch(error){setLoadError(error instanceof Error?`Draft not saved: ${error.message}`:"Draft not saved.");return;}}
+    if(serverMode&&leaving?.status==="editing"){try{await persistDraft(leaving);}catch(error){setLoadError(error instanceof Error?`Draft not saved: ${error.message}`:"Draft not saved.");return;}}
     setCurrentIndex(targetIndex);
     setValidationErrors(false);
     setShowSuccessToast(false);
     setShowReviewToast(false);
-  }, [TOTAL_ITEMS,currentIndex,serverMode]);
+  }, [TOTAL_ITEMS,currentIndex,serverMode,persistDraft]);
 
   const refreshProgress = useCallback(async()=>{if(!requestedBatchId)return null;const value=await loadProgress(requestedBatchId);setServerProgress(value);setBatchComplete(value.complete);return value;},[requestedBatchId]);
 
-  useEffect(()=>{if(!serverMode||currentState.status!=="editing")return;const timer=window.setTimeout(()=>{saveDraft(currentState.itemId,currentState).catch((error)=>setLoadError(error instanceof Error?`Draft not saved: ${error.message}`:"Draft not saved."));},600);return()=>window.clearTimeout(timer);},[serverMode,currentState]);
+  useEffect(()=>{if(!serverMode||currentState.status!=="editing")return;const snapshot=currentState;const timer=window.setTimeout(()=>{persistDraft(snapshot).catch((error)=>setLoadError(error instanceof Error?`Draft not saved: ${error.message}`:"Draft not saved."));},600);return()=>window.clearTimeout(timer);},[serverMode,currentState,persistDraft]);
 
   const handleSaveNext = useCallback(async () => {
     if (!isReady || transitionLockRef.current) {
@@ -229,7 +234,8 @@ export default function EmployeeScreen() {
 
     let authoritativeVersion=validation.normalizedAnswer.itemVersion+1;
     let authoritativeNextId:string|null=null;
-    try { if(serverMode){const result=await saveFinal(validation.normalizedAnswer.itemId,validation.normalizedAnswer);authoritativeVersion=result.itemVersion;authoritativeNextId=result.nextItemId;} } catch(error){transitionLockRef.current=false;setIsSubmitting(false);setLoadError(error instanceof Error?error.message:"Save failed. Retry when the service is available.");return;}
+    const operationId=`answer:${validation.normalizedAnswer.itemId}`;const payload=JSON.stringify(validation.normalizedAnswer);const priorOperation=operationKeysRef.current.get(operationId);const operation=priorOperation?.payload===payload?priorOperation:{key:crypto.randomUUID(),payload};operationKeysRef.current.set(operationId,operation);const operationKey=operation.key;
+    try { if(serverMode){await (draftSaveChainsRef.current.get(validation.normalizedAnswer.itemId)??Promise.resolve());const result=await saveFinal(validation.normalizedAnswer.itemId,validation.normalizedAnswer,false,operationKey);authoritativeVersion=result.itemVersion;authoritativeNextId=result.nextItemId;operationKeysRef.current.delete(operationId);} } catch(error){transitionLockRef.current=false;setIsSubmitting(false);setLoadError(error instanceof Error?error.message:"Save failed. Retry when the service is available.");return;}
     const nextStates = new Map(itemStatesRef.current);
     nextStates.set(currentIndex, {
       ...validation.normalizedAnswer,
@@ -240,7 +246,7 @@ export default function EmployeeScreen() {
     const localComplete = Array.from(nextStates.values()).filter(
       state => state.status === 'submitted' || state.status === 'needs_review'
     ).length === TOTAL_ITEMS;
-    const refreshed=serverMode?await refreshProgress():null;
+    let refreshed=null;try{refreshed=serverMode?await refreshProgress():null;}catch{setLoadError("Item saved. Progress could not refresh; reload to reconcile.");}
     const batchIsComplete = refreshed?.complete ?? localComplete;
     const serverNextIndex=authoritativeNextId?scenarios.findIndex((value)=>value.id===authoritativeNextId):-1;
     const nextPendingIndex = batchIsComplete
@@ -268,7 +274,8 @@ export default function EmployeeScreen() {
 
     const draft=itemStatesRef.current.get(currentIndex) ?? createDefaultItemDraft(scenario,versions[currentIndex]??1);
     let authoritativeVersion=draft.itemVersion+1;let authoritativeNextId:string|null=null;
-    try{if(serverMode){const result=await saveFinal(draft.itemId,draft,true);authoritativeVersion=result.itemVersion;authoritativeNextId=result.nextItemId;}}catch(error){transitionLockRef.current=false;setIsSubmitting(false);setLoadError(error instanceof Error?error.message:"Needs Review was not saved. Retry.");return;}
+    const operationId=`review:${draft.itemId}`;const payload=JSON.stringify(draft);const priorOperation=operationKeysRef.current.get(operationId);const operation=priorOperation?.payload===payload?priorOperation:{key:crypto.randomUUID(),payload};operationKeysRef.current.set(operationId,operation);const operationKey=operation.key;
+    try{if(serverMode){await (draftSaveChainsRef.current.get(draft.itemId)??Promise.resolve());const result=await saveFinal(draft.itemId,draft,true,operationKey);authoritativeVersion=result.itemVersion;authoritativeNextId=result.nextItemId;operationKeysRef.current.delete(operationId);}}catch(error){transitionLockRef.current=false;setIsSubmitting(false);setLoadError(error instanceof Error?error.message:"Needs Review was not saved. Retry.");return;}
     const nextStates = new Map(itemStatesRef.current);
     nextStates.set(currentIndex, {
       ...draft, status: 'needs_review', itemVersion:authoritativeVersion,
@@ -278,7 +285,7 @@ export default function EmployeeScreen() {
     const localComplete = Array.from(nextStates.values()).filter(
       state => state.status === 'submitted' || state.status === 'needs_review'
     ).length === TOTAL_ITEMS;
-    const refreshed=serverMode?await refreshProgress():null;const batchIsComplete=refreshed?.complete??localComplete;
+    let refreshed=null;try{refreshed=serverMode?await refreshProgress():null;}catch{setLoadError("Review saved. Progress could not refresh; reload to reconcile.");}const batchIsComplete=refreshed?.complete??localComplete;
     const serverNextIndex=authoritativeNextId?scenarios.findIndex((value)=>value.id===authoritativeNextId):-1;
     const nextPendingIndex = batchIsComplete
       ? currentIndex

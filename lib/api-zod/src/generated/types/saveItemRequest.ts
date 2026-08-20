@@ -5,7 +5,7 @@
  * Executable controlled nonproduction integration API
  * OpenAPI spec version: 0.2.0
  */
-import type { ItemDraft } from "./itemDraft";
+import type { ItemDraft } from './itemDraft';
 
 export interface SaveItemRequest {
   draft: ItemDraft;

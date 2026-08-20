@@ -6,14 +6,14 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export type NeedsReviewRequestReasonCode =
-  (typeof NeedsReviewRequestReasonCode)[keyof typeof NeedsReviewRequestReasonCode];
+export type NeedsReviewRequestReasonCode = typeof NeedsReviewRequestReasonCode[keyof typeof NeedsReviewRequestReasonCode];
+
 
 export const NeedsReviewRequestReasonCode = {
-  inventory_discrepancy: "inventory_discrepancy",
-  item_damage: "item_damage",
-  identity_uncertain: "identity_uncertain",
-  missing_information: "missing_information",
-  workflow_exception: "workflow_exception",
-  other: "other",
+  inventory_discrepancy: 'inventory_discrepancy',
+  item_damage: 'item_damage',
+  identity_uncertain: 'identity_uncertain',
+  missing_information: 'missing_information',
+  workflow_exception: 'workflow_exception',
+  other: 'other',
 } as const;

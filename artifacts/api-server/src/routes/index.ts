@@ -12,7 +12,7 @@ const itemWriteRepository = process.env.NODE_ENV === "production" || process.env
 export function createApiRouter(service: ItemWriteService, phase2Service?: Phase2Service): IRouter {
   const router: IRouter = Router();
   if (phase2Service) router.use(createPhase2Router(phase2Service));
-  router.use(createItemRouter(service));
+  router.use(createItemRouter(service, phase2Service));
   return router;
 }
 

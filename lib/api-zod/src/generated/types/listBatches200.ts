@@ -5,7 +5,7 @@
  * Executable controlled nonproduction integration API
  * OpenAPI spec version: 0.2.0
  */
-import type { Batch } from "./batch";
+import type { Batch } from './batch';
 
 export type ListBatches200 = {
   batches: Batch[];

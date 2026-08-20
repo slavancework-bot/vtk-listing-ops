@@ -5,7 +5,7 @@
  * Executable controlled nonproduction integration API
  * OpenAPI spec version: 0.2.0
  */
-import type { NeedsReviewRequestReasonCode } from "./needsReviewRequestReasonCode";
+import type { NeedsReviewRequestReasonCode } from './needsReviewRequestReasonCode';
 
 export type NeedsReviewRequestReason = {
   code: NeedsReviewRequestReasonCode;

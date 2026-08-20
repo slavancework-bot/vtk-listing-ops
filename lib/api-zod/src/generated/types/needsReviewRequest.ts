@@ -5,8 +5,8 @@
  * Executable controlled nonproduction integration API
  * OpenAPI spec version: 0.2.0
  */
-import type { ItemDraft } from "./itemDraft";
-import type { NeedsReviewRequestReason } from "./needsReviewRequestReason";
+import type { ItemDraft } from './itemDraft';
+import type { NeedsReviewRequestReason } from './needsReviewRequestReason';
 
 export interface NeedsReviewRequest {
   draft: ItemDraft;

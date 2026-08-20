@@ -5,7 +5,7 @@
  * Executable controlled nonproduction integration API
  * OpenAPI spec version: 0.2.0
  */
-import type { ApiError } from "./apiError";
+import type { ApiError } from './apiError';
 
 /**
  * Structured API error

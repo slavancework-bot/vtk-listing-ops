@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export type ItemWriteResponseStatus =
-  (typeof ItemWriteResponseStatus)[keyof typeof ItemWriteResponseStatus];
+export type ItemWriteResponseStatus = typeof ItemWriteResponseStatus[keyof typeof ItemWriteResponseStatus];
+
 
 export const ItemWriteResponseStatus = {
-  completed: "completed",
-  needs_review: "needs_review",
+  completed: 'completed',
+  needs_review: 'needs_review',
 } as const;

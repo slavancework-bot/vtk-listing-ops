@@ -6,6 +6,4 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export type ItemDraftFieldValues = {
-  [key: string]: string | number | boolean | null;
-};
+export type ItemDraftFieldValues = {[key: string]: string | number | boolean | null};

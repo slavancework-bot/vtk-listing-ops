@@ -6,9 +6,9 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export type DraftWriteResponseStatus =
-  (typeof DraftWriteResponseStatus)[keyof typeof DraftWriteResponseStatus];
+export type DraftWriteResponseStatus = typeof DraftWriteResponseStatus[keyof typeof DraftWriteResponseStatus];
+
 
 export const DraftWriteResponseStatus = {
-  editing: "editing",
+  editing: 'editing',
 } as const;

@@ -18,9 +18,9 @@ export interface BatchProgress {
   /** @minimum 0 */
   pendingCount: number;
   /**
-   * @minimum 0
-   * @maximum 100
-   */
+     * @minimum 0
+     * @maximum 100
+     */
   percent: number;
   complete: boolean;
 }

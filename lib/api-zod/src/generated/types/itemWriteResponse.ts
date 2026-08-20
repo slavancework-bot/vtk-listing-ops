@@ -5,7 +5,7 @@
  * Executable controlled nonproduction integration API
  * OpenAPI spec version: 0.2.0
  */
-import type { ItemWriteResponseStatus } from "./itemWriteResponseStatus";
+import type { ItemWriteResponseStatus } from './itemWriteResponseStatus';
 
 export interface ItemWriteResponse {
   itemId: string;

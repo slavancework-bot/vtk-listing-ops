@@ -21,6 +21,8 @@ function parseLine(line: string): string[] {
   values.push(value); return values;
 }
 
+function splitRecords(text:string):string[]{const records:string[]=[];let record="";let quoted=false;for(let index=0;index<text.length;index+=1){const character=text[index];if(character==='"'){record+=character;if(quoted&&text[index+1]==='"'){record+=text[++index];continue;}quoted=!quoted;continue;}if(character==='\n'&&!quoted){if(record.trim())records.push(record);record="";}else record+=character;}if(quoted)throw new ApiFault(422,"INVALID_CSV","CSV contains an unterminated quoted field.");if(record.trim())records.push(record);return records;}
+
 function parseJsonArray(value: string, field: string): unknown[] {
   if (!value.trim()) return [];
   try { const parsed = JSON.parse(value); if (!Array.isArray(parsed)) throw new Error(); return parsed; }
@@ -36,7 +38,7 @@ export function parseControlledCsv(input: { filename: string; mimeType: string; 
   if (bytes.length === 0 || bytes.length > MAX_IMPORT_BYTES) throw new ApiFault(413, "UPLOAD_TOO_LARGE", `CSV must be between 1 and ${MAX_IMPORT_BYTES} bytes.`);
   if (bytes.includes(0)) throw new ApiFault(422, "INVALID_ENCODING", "CSV must be UTF-8 text without null bytes.");
   const normalizedText = input.content.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
-  const lines = normalizedText.split("\n").filter((line) => line.trim() !== "");
+  const lines = splitRecords(normalizedText);
   if (lines.length < 2) throw new ApiFault(422, "INVALID_CSV", "CSV must contain a header and at least one data row.");
   if (lines.length - 1 > MAX_IMPORT_ROWS) throw new ApiFault(422, "ROW_LIMIT_EXCEEDED", `CSV cannot exceed ${MAX_IMPORT_ROWS} data rows.`);
   const headers = parseLine(lines[0]).map((value) => value.trim());

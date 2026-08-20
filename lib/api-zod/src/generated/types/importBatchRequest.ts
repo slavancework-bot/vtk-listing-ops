@@ -8,25 +8,25 @@
 
 export interface ImportBatchRequest {
   /**
-   * @minLength 1
-   * @maxLength 200
-   */
+     * @minLength 1
+     * @maxLength 200
+     */
   importKey: string;
   /**
-   * @minLength 1
-   * @maxLength 255
-   */
+     * @minLength 1
+     * @maxLength 255
+     */
   filename: string;
   /**
-   * @minLength 1
-   * @maxLength 100
-   */
+     * @minLength 1
+     * @maxLength 100
+     */
   mimeType: string;
   /** @minLength 1 */
   content: string;
   /**
-   * @minLength 1
-   * @maxLength 200
-   */
+     * @minLength 1
+     * @maxLength 200
+     */
   name?: string;
 }

@@ -62,7 +62,7 @@ paths:
     put:
       operationId: saveItemDraft
       tags: [employee]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SaveItemRequest" } } } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SaveDraftRequest" } } } }
       responses: { "200": { description: Draft saved, content: { application/json: { schema: { $ref: "#/components/schemas/DraftWriteResponse" } } } }, "400": { $ref: "#/components/responses/ApiError" }, "403": { $ref: "#/components/responses/ApiError" }, "404": { $ref: "#/components/responses/ApiError" }, "409": { $ref: "#/components/responses/ApiError" } }
   /items/{itemId}/answer:
     parameters: [{ $ref: "#/components/parameters/ItemId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
@@ -114,7 +114,7 @@ components:
     ImportBatchResult: { type: object, required: [batchId, replayed, itemCount, checksum], properties: { batchId: { type: string, format: uuid }, replayed: { type: boolean }, itemCount: { type: integer, minimum: 1 }, checksum: { type: string, pattern: "^[a-f0-9]{64}$" } } }
     BatchProgress: { type: object, required: [totalItemCount, completedCount, reviewCount, processedCount, pendingCount, percent, complete], properties: { totalItemCount: { type: integer, minimum: 0 }, completedCount: { type: integer, minimum: 0 }, reviewCount: { type: integer, minimum: 0 }, processedCount: { type: integer, minimum: 0 }, pendingCount: { type: integer, minimum: 0 }, percent: { type: integer, minimum: 0, maximum: 100 }, complete: { type: boolean } } }
     Batch: { type: object, additionalProperties: true, required: [id, name, status, progress], properties: { id: { type: string, format: uuid }, name: { type: string }, status: { type: string }, progress: { $ref: "#/components/schemas/BatchProgress" } } }
-    ListingItem: { type: object, additionalProperties: true, required: [id, batchId, sku, status, version], properties: { id: { type: string, format: uuid }, batchId: { type: string, format: uuid }, sku: { type: string }, status: { type: string }, version: { type: integer, minimum: 1 }, draft: { oneOf: [{ $ref: "#/components/schemas/ItemDraft" }, { type: "null" }] } } }
+    ListingItem: { type: object, additionalProperties: true, required: [id, batchId, sku, status, version, draftVersion], properties: { id: { type: string, format: uuid }, batchId: { type: string, format: uuid }, sku: { type: string }, status: { type: string }, version: { type: integer, minimum: 1 }, draftVersion: { type: integer, minimum: 0 }, draft: { oneOf: [{ $ref: "#/components/schemas/ItemDraft" }, { type: "null" }] } } }
     DraftWriteResponse: { type: object, required: [itemId, itemVersion, draftVersion, status], properties: { itemId: { type: string, format: uuid }, itemVersion: { type: integer, minimum: 1 }, draftVersion: { type: integer, minimum: 1 }, status: { type: string, enum: [editing] } } }
     ConditionCode: { type: string, enum: [A, B, C, D] }
     IncludedItemsAnswer:
@@ -136,6 +136,7 @@ components:
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     SaveItemRequest: { type: object, required: [draft], properties: { draft: { $ref: "#/components/schemas/ItemDraft" } } }
+    SaveDraftRequest: { type: object, required: [draft, expectedDraftVersion], properties: { draft: { $ref: "#/components/schemas/ItemDraft" }, expectedDraftVersion: { type: integer, minimum: 0 } } }
     NeedsReviewRequest:
       type: object
       required: [draft, reason]

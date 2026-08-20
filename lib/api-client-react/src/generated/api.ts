@@ -5,7 +5,10 @@
  * Executable controlled nonproduction integration API
  * OpenAPI spec version: 0.2.0
  */
-import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery
+} from '@tanstack/react-query';
 import type {
   MutationFunction,
   QueryFunction,
@@ -13,8 +16,8 @@ import type {
   UseMutationOptions,
   UseMutationResult,
   UseQueryOptions,
-  UseQueryResult,
-} from "@tanstack/react-query";
+  UseQueryResult
+} from '@tanstack/react-query';
 
 import type {
   ApiErrorResponse,
@@ -30,27 +33,28 @@ import type {
   ListBatches200,
   ListingItem,
   NeedsReviewRequest,
-  SaveItemRequest,
-} from "./api.schemas";
+  SaveDraftRequest,
+  SaveItemRequest
+} from './api.schemas';
 
-import { customFetch } from "../custom-fetch";
-import type { ErrorType, BodyType } from "../custom-fetch";
+import { customFetch } from '../custom-fetch';
+import type { ErrorType , BodyType } from '../custom-fetch';
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
-type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
+      type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
+
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
-const withQueryKey = <T extends object, K>(
-  query: T,
-  queryKey: K,
-): T & { queryKey: K } => {
+
+
+const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKey: K } => {
   const result = { queryKey } as T & { queryKey: K };
   for (const key of Object.keys(query)) {
     // The explicit queryKey always wins, matching the previous
     // `{ ...query, queryKey }` spread where it was set last.
-    if (key === "queryKey") continue;
+    if (key === 'queryKey') continue;
     Object.defineProperty(result, key, {
       enumerable: true,
       configurable: true,
@@ -61,919 +65,832 @@ const withQueryKey = <T extends object, K>(
 };
 
 export const getHealthCheckUrl = () => {
-  return `/api/healthz`;
-};
 
-export const healthCheck = async (
-  options?: Parameters<typeof customFetch>[1],
-): Promise<HealthStatus> => {
-  return customFetch<HealthStatus>(getHealthCheckUrl(), {
+
+
+
+  return `/api/healthz`
+}
+
+export const healthCheck = async ( options?: Parameters<typeof customFetch>[1]): Promise<HealthStatus> => {
+
+  return customFetch<HealthStatus>(getHealthCheckUrl(),
+  {
     ...options,
-    method: "GET",
-  });
-};
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
 
 export const getHealthCheckQueryKey = () => {
-  return [`/api/healthz`] as const;
-};
+    return [
+    `/api/healthz`
+    ] as const;
+    }
 
-export const getHealthCheckQueryOptions = <
-  TData = Awaited<ReturnType<typeof healthCheck>>,
-  TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof healthCheck>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getHealthCheckQueryKey();
+export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof healthCheck>>> = ({
-    signal,
-  }) => healthCheck({ signal, ...requestOptions });
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof healthCheck>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
+  const queryKey =  queryOptions?.queryKey ?? getHealthCheckQueryKey();
 
-export type HealthCheckQueryResult = NonNullable<
-  Awaited<ReturnType<typeof healthCheck>>
->;
-export type HealthCheckQueryError = ErrorType<unknown>;
 
-export function useHealthCheck<
-  TData = Awaited<ReturnType<typeof healthCheck>>,
-  TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof healthCheck>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getHealthCheckQueryOptions(options);
 
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthCheck>>> = ({ signal }) => healthCheck({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type HealthCheckQueryResult = NonNullable<Awaited<ReturnType<typeof healthCheck>>>
+export type HealthCheckQueryError = ErrorType<unknown>
+
+
+
+export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getHealthCheckQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
 
 export const getReadinessCheckUrl = () => {
-  return `/api/readyz`;
-};
 
-export const readinessCheck = async (
-  options?: Parameters<typeof customFetch>[1],
-): Promise<HealthStatus> => {
-  return customFetch<HealthStatus>(getReadinessCheckUrl(), {
+
+
+
+  return `/api/readyz`
+}
+
+export const readinessCheck = async ( options?: Parameters<typeof customFetch>[1]): Promise<HealthStatus> => {
+
+  return customFetch<HealthStatus>(getReadinessCheckUrl(),
+  {
     ...options,
-    method: "GET",
-  });
-};
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
 
 export const getReadinessCheckQueryKey = () => {
-  return [`/api/readyz`] as const;
-};
+    return [
+    `/api/readyz`
+    ] as const;
+    }
 
-export const getReadinessCheckQueryOptions = <
-  TData = Awaited<ReturnType<typeof readinessCheck>>,
-  TError = ErrorType<ApiErrorResponse>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof readinessCheck>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getReadinessCheckQueryKey();
+export const getReadinessCheckQueryOptions = <TData = Awaited<ReturnType<typeof readinessCheck>>, TError = ErrorType<ApiErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof readinessCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof readinessCheck>>> = ({
-    signal,
-  }) => readinessCheck({ signal, ...requestOptions });
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof readinessCheck>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
+  const queryKey =  queryOptions?.queryKey ?? getReadinessCheckQueryKey();
 
-export type ReadinessCheckQueryResult = NonNullable<
-  Awaited<ReturnType<typeof readinessCheck>>
->;
-export type ReadinessCheckQueryError = ErrorType<ApiErrorResponse>;
 
-export function useReadinessCheck<
-  TData = Awaited<ReturnType<typeof readinessCheck>>,
-  TError = ErrorType<ApiErrorResponse>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof readinessCheck>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getReadinessCheckQueryOptions(options);
 
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readinessCheck>>> = ({ signal }) => readinessCheck({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof readinessCheck>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ReadinessCheckQueryResult = NonNullable<Awaited<ReturnType<typeof readinessCheck>>>
+export type ReadinessCheckQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useReadinessCheck<TData = Awaited<ReturnType<typeof readinessCheck>>, TError = ErrorType<ApiErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof readinessCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getReadinessCheckQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
 
 export const getImportBatchUrl = () => {
-  return `/api/batches/import`;
-};
 
-export const importBatch = async (
-  importBatchRequest: ImportBatchRequest,
-  options?: Parameters<typeof customFetch>[1],
-): Promise<ImportBatchResult> => {
-  return customFetch<ImportBatchResult>(getImportBatchUrl(), {
+
+
+
+  return `/api/batches/import`
+}
+
+export const importBatch = async (importBatchRequest: ImportBatchRequest, options?: Parameters<typeof customFetch>[1]): Promise<ImportBatchResult> => {
+
+  return customFetch<ImportBatchResult>(getImportBatchUrl(),
+  {
     ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(importBatchRequest),
-  });
-};
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(importBatchRequest)
+  }
+);}
 
-export const getImportBatchMutationOptions = <
-  TError = ErrorType<ApiErrorResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof importBatch>>,
-    TError,
-    { data: BodyType<ImportBatchRequest> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof importBatch>>,
-  TError,
-  { data: BodyType<ImportBatchRequest> },
-  TContext
-> => {
-  const mutationKey = ["importBatch"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof importBatch>>,
-    { data: BodyType<ImportBatchRequest> }
-  > = (props) => {
-    const { data } = props ?? {};
 
-    return importBatch(data, requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
 
-export type ImportBatchMutationResult = NonNullable<
-  Awaited<ReturnType<typeof importBatch>>
->;
-export type ImportBatchMutationBody = BodyType<ImportBatchRequest>;
-export type ImportBatchMutationError = ErrorType<ApiErrorResponse>;
+export const getImportBatchMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importBatch>>, TError,{data: BodyType<ImportBatchRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importBatch>>, TError,{data: BodyType<ImportBatchRequest>}, TContext> => {
 
-export const useImportBatch = <
-  TError = ErrorType<ApiErrorResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof importBatch>>,
-    TError,
-    { data: BodyType<ImportBatchRequest> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof importBatch>>,
-  TError,
-  { data: BodyType<ImportBatchRequest> },
-  TContext
-> => {
-  return useMutation(getImportBatchMutationOptions(options));
-};
+const mutationKey = ['importBatch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importBatch>>, {data: BodyType<ImportBatchRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importBatch(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportBatchMutationResult = NonNullable<Awaited<ReturnType<typeof importBatch>>>
+    export type ImportBatchMutationBody = BodyType<ImportBatchRequest>
+    export type ImportBatchMutationError = ErrorType<ApiErrorResponse>
+
+    export const useImportBatch = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importBatch>>, TError,{data: BodyType<ImportBatchRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importBatch>>,
+        TError,
+        {data: BodyType<ImportBatchRequest>},
+        TContext
+      > => {
+      return useMutation(getImportBatchMutationOptions(options));
+    }
 
 export const getListBatchesUrl = () => {
-  return `/api/batches`;
-};
 
-export const listBatches = async (
-  options?: Parameters<typeof customFetch>[1],
-): Promise<ListBatches200> => {
-  return customFetch<ListBatches200>(getListBatchesUrl(), {
+
+
+
+  return `/api/batches`
+}
+
+export const listBatches = async ( options?: Parameters<typeof customFetch>[1]): Promise<ListBatches200> => {
+
+  return customFetch<ListBatches200>(getListBatchesUrl(),
+  {
     ...options,
-    method: "GET",
-  });
-};
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
 
 export const getListBatchesQueryKey = () => {
-  return [`/api/batches`] as const;
-};
+    return [
+    `/api/batches`
+    ] as const;
+    }
 
-export const getListBatchesQueryOptions = <
-  TData = Awaited<ReturnType<typeof listBatches>>,
-  TError = ErrorType<ApiErrorResponse>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listBatches>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListBatchesQueryKey();
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof listBatches>>> = ({
-    signal,
-  }) => listBatches({ signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listBatches>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ListBatchesQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listBatches>>
->;
-export type ListBatchesQueryError = ErrorType<ApiErrorResponse>;
-
-export function useListBatches<
-  TData = Awaited<ReturnType<typeof listBatches>>,
-  TError = ErrorType<ApiErrorResponse>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listBatches>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListBatchesQueryOptions(options);
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-export const getGetBatchUrl = (batchId: string) => {
-  return `/api/batches/${batchId}`;
-};
-
-export const getBatch = async (
-  batchId: string,
-  options?: Parameters<typeof customFetch>[1],
-): Promise<Batch> => {
-  return customFetch<Batch>(getGetBatchUrl(batchId), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getGetBatchQueryKey = (batchId: string) => {
-  return [`/api/batches/${batchId}`] as const;
-};
-
-export const getGetBatchQueryOptions = <
-  TData = Awaited<ReturnType<typeof getBatch>>,
-  TError = ErrorType<ApiErrorResponse>,
->(
-  batchId: string,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getBatch>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
+export const getListBatchesQueryOptions = <TData = Awaited<ReturnType<typeof listBatches>>, TError = ErrorType<ApiErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBatches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetBatchQueryKey(batchId);
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBatch>>> = ({
-    signal,
-  }) => getBatch(batchId, { signal, ...requestOptions });
+  const queryKey =  queryOptions?.queryKey ?? getListBatchesQueryKey();
 
-  return {
-    queryKey,
-    queryFn,
-    enabled: batchId !== null && batchId !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<Awaited<ReturnType<typeof getBatch>>, TError, TData> & {
-    queryKey: QueryKey;
-  };
-};
 
-export type GetBatchQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getBatch>>
->;
-export type GetBatchQueryError = ErrorType<ApiErrorResponse>;
 
-export function useGetBatch<
-  TData = Awaited<ReturnType<typeof getBatch>>,
-  TError = ErrorType<ApiErrorResponse>,
->(
-  batchId: string,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getBatch>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetBatchQueryOptions(batchId, options);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBatches>>> = ({ signal }) => listBatches({ signal, ...requestOptions });
 
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBatches>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBatchesQueryResult = NonNullable<Awaited<ReturnType<typeof listBatches>>>
+export type ListBatchesQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useListBatches<TData = Awaited<ReturnType<typeof listBatches>>, TError = ErrorType<ApiErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBatches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBatchesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
 
-export const getGetBatchProgressUrl = (batchId: string) => {
-  return `/api/batches/${batchId}/progress`;
-};
 
-export const getBatchProgress = async (
-  batchId: string,
-  options?: Parameters<typeof customFetch>[1],
-): Promise<BatchProgress> => {
-  return customFetch<BatchProgress>(getGetBatchProgressUrl(batchId), {
+
+
+
+
+
+export const getGetBatchUrl = (batchId: string,) => {
+
+
+
+
+  return `/api/batches/${batchId}`
+}
+
+export const getBatch = async (batchId: string, options?: Parameters<typeof customFetch>[1]): Promise<Batch> => {
+
+  return customFetch<Batch>(getGetBatchUrl(batchId),
+  {
     ...options,
-    method: "GET",
-  });
-};
+    method: 'GET'
 
-export const getGetBatchProgressQueryKey = (batchId: string) => {
-  return [`/api/batches/${batchId}/progress`] as const;
-};
 
-export const getGetBatchProgressQueryOptions = <
-  TData = Awaited<ReturnType<typeof getBatchProgress>>,
-  TError = ErrorType<ApiErrorResponse>,
->(
-  batchId: string,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getBatchProgress>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
+  }
+);}
+
+
+
+
+
+export const getGetBatchQueryKey = (batchId: string,) => {
+    return [
+    `/api/batches/${batchId}`
+    ] as const;
+    }
+
+
+export const getGetBatchQueryOptions = <TData = Awaited<ReturnType<typeof getBatch>>, TError = ErrorType<ApiErrorResponse>>(batchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBatch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ?? getGetBatchProgressQueryKey(batchId);
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getBatchProgress>>
-  > = ({ signal }) => getBatchProgress(batchId, { signal, ...requestOptions });
+  const queryKey =  queryOptions?.queryKey ?? getGetBatchQueryKey(batchId);
 
-  return {
-    queryKey,
-    queryFn,
-    enabled: batchId !== null && batchId !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getBatchProgress>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
 
-export type GetBatchProgressQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getBatchProgress>>
->;
-export type GetBatchProgressQueryError = ErrorType<ApiErrorResponse>;
 
-export function useGetBatchProgress<
-  TData = Awaited<ReturnType<typeof getBatchProgress>>,
-  TError = ErrorType<ApiErrorResponse>,
->(
-  batchId: string,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getBatchProgress>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetBatchProgressQueryOptions(batchId, options);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBatch>>> = ({ signal }) => getBatch(batchId, { signal, ...requestOptions });
 
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
+
+
+
+
+   return  { queryKey, queryFn, enabled: batchId !== null && batchId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBatch>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBatchQueryResult = NonNullable<Awaited<ReturnType<typeof getBatch>>>
+export type GetBatchQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useGetBatch<TData = Awaited<ReturnType<typeof getBatch>>, TError = ErrorType<ApiErrorResponse>>(
+ batchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBatch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBatchQueryOptions(batchId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
 
-export const getListBatchItemsUrl = (batchId: string) => {
-  return `/api/batches/${batchId}/items`;
-};
 
-export const listBatchItems = async (
-  batchId: string,
-  options?: Parameters<typeof customFetch>[1],
-): Promise<ListBatchItems200> => {
-  return customFetch<ListBatchItems200>(getListBatchItemsUrl(batchId), {
+
+
+
+
+
+export const getGetBatchProgressUrl = (batchId: string,) => {
+
+
+
+
+  return `/api/batches/${batchId}/progress`
+}
+
+export const getBatchProgress = async (batchId: string, options?: Parameters<typeof customFetch>[1]): Promise<BatchProgress> => {
+
+  return customFetch<BatchProgress>(getGetBatchProgressUrl(batchId),
+  {
     ...options,
-    method: "GET",
-  });
-};
+    method: 'GET'
 
-export const getListBatchItemsQueryKey = (batchId: string) => {
-  return [`/api/batches/${batchId}/items`] as const;
-};
 
-export const getListBatchItemsQueryOptions = <
-  TData = Awaited<ReturnType<typeof listBatchItems>>,
-  TError = ErrorType<unknown>,
->(
-  batchId: string,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof listBatchItems>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
+  }
+);}
+
+
+
+
+
+export const getGetBatchProgressQueryKey = (batchId: string,) => {
+    return [
+    `/api/batches/${batchId}/progress`
+    ] as const;
+    }
+
+
+export const getGetBatchProgressQueryOptions = <TData = Awaited<ReturnType<typeof getBatchProgress>>, TError = ErrorType<ApiErrorResponse>>(batchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBatchProgress>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListBatchItemsQueryKey(batchId);
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof listBatchItems>>> = ({
-    signal,
-  }) => listBatchItems(batchId, { signal, ...requestOptions });
+  const queryKey =  queryOptions?.queryKey ?? getGetBatchProgressQueryKey(batchId);
 
-  return {
-    queryKey,
-    queryFn,
-    enabled: batchId !== null && batchId !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof listBatchItems>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
 
-export type ListBatchItemsQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listBatchItems>>
->;
-export type ListBatchItemsQueryError = ErrorType<unknown>;
 
-export function useListBatchItems<
-  TData = Awaited<ReturnType<typeof listBatchItems>>,
-  TError = ErrorType<unknown>,
->(
-  batchId: string,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof listBatchItems>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListBatchItemsQueryOptions(batchId, options);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBatchProgress>>> = ({ signal }) => getBatchProgress(batchId, { signal, ...requestOptions });
 
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
+
+
+
+
+   return  { queryKey, queryFn, enabled: batchId !== null && batchId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBatchProgress>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBatchProgressQueryResult = NonNullable<Awaited<ReturnType<typeof getBatchProgress>>>
+export type GetBatchProgressQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useGetBatchProgress<TData = Awaited<ReturnType<typeof getBatchProgress>>, TError = ErrorType<ApiErrorResponse>>(
+ batchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBatchProgress>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBatchProgressQueryOptions(batchId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
 
-export const getGetNextPendingItemUrl = (batchId: string) => {
-  return `/api/batches/${batchId}/next-item`;
-};
 
-export const getNextPendingItem = async (
-  batchId: string,
-  options?: Parameters<typeof customFetch>[1],
-): Promise<GetNextPendingItem200> => {
-  return customFetch<GetNextPendingItem200>(getGetNextPendingItemUrl(batchId), {
+
+
+
+
+
+export const getListBatchItemsUrl = (batchId: string,) => {
+
+
+
+
+  return `/api/batches/${batchId}/items`
+}
+
+export const listBatchItems = async (batchId: string, options?: Parameters<typeof customFetch>[1]): Promise<ListBatchItems200> => {
+
+  return customFetch<ListBatchItems200>(getListBatchItemsUrl(batchId),
+  {
     ...options,
-    method: "GET",
-  });
-};
+    method: 'GET'
 
-export const getGetNextPendingItemQueryKey = (batchId: string) => {
-  return [`/api/batches/${batchId}/next-item`] as const;
-};
 
-export const getGetNextPendingItemQueryOptions = <
-  TData = Awaited<ReturnType<typeof getNextPendingItem>>,
-  TError = ErrorType<unknown>,
->(
-  batchId: string,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getNextPendingItem>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
+  }
+);}
+
+
+
+
+
+export const getListBatchItemsQueryKey = (batchId: string,) => {
+    return [
+    `/api/batches/${batchId}/items`
+    ] as const;
+    }
+
+
+export const getListBatchItemsQueryOptions = <TData = Awaited<ReturnType<typeof listBatchItems>>, TError = ErrorType<unknown>>(batchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBatchItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ?? getGetNextPendingItemQueryKey(batchId);
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getNextPendingItem>>
-  > = ({ signal }) =>
-    getNextPendingItem(batchId, { signal, ...requestOptions });
+  const queryKey =  queryOptions?.queryKey ?? getListBatchItemsQueryKey(batchId);
 
-  return {
-    queryKey,
-    queryFn,
-    enabled: batchId !== null && batchId !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getNextPendingItem>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
 
-export type GetNextPendingItemQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getNextPendingItem>>
->;
-export type GetNextPendingItemQueryError = ErrorType<unknown>;
 
-export function useGetNextPendingItem<
-  TData = Awaited<ReturnType<typeof getNextPendingItem>>,
-  TError = ErrorType<unknown>,
->(
-  batchId: string,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getNextPendingItem>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetNextPendingItemQueryOptions(batchId, options);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBatchItems>>> = ({ signal }) => listBatchItems(batchId, { signal, ...requestOptions });
 
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
+
+
+
+
+   return  { queryKey, queryFn, enabled: batchId !== null && batchId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBatchItems>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBatchItemsQueryResult = NonNullable<Awaited<ReturnType<typeof listBatchItems>>>
+export type ListBatchItemsQueryError = ErrorType<unknown>
+
+
+
+export function useListBatchItems<TData = Awaited<ReturnType<typeof listBatchItems>>, TError = ErrorType<unknown>>(
+ batchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBatchItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBatchItemsQueryOptions(batchId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
 
-export const getGetItemUrl = (itemId: string) => {
-  return `/api/items/${itemId}`;
-};
 
-export const getItem = async (
-  itemId: string,
-  options?: Parameters<typeof customFetch>[1],
-): Promise<ListingItem> => {
-  return customFetch<ListingItem>(getGetItemUrl(itemId), {
+
+
+
+
+
+export const getGetNextPendingItemUrl = (batchId: string,) => {
+
+
+
+
+  return `/api/batches/${batchId}/next-item`
+}
+
+export const getNextPendingItem = async (batchId: string, options?: Parameters<typeof customFetch>[1]): Promise<GetNextPendingItem200> => {
+
+  return customFetch<GetNextPendingItem200>(getGetNextPendingItemUrl(batchId),
+  {
     ...options,
-    method: "GET",
-  });
-};
+    method: 'GET'
 
-export const getGetItemQueryKey = (itemId: string) => {
-  return [`/api/items/${itemId}`] as const;
-};
 
-export const getGetItemQueryOptions = <
-  TData = Awaited<ReturnType<typeof getItem>>,
-  TError = ErrorType<ApiErrorResponse>,
->(
-  itemId: string,
-  options?: {
-    query?: UseQueryOptions<Awaited<ReturnType<typeof getItem>>, TError, TData>;
-    request?: SecondParameter<typeof customFetch>;
-  },
+  }
+);}
+
+
+
+
+
+export const getGetNextPendingItemQueryKey = (batchId: string,) => {
+    return [
+    `/api/batches/${batchId}/next-item`
+    ] as const;
+    }
+
+
+export const getGetNextPendingItemQueryOptions = <TData = Awaited<ReturnType<typeof getNextPendingItem>>, TError = ErrorType<unknown>>(batchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNextPendingItem>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetItemQueryKey(itemId);
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getItem>>> = ({
-    signal,
-  }) => getItem(itemId, { signal, ...requestOptions });
+  const queryKey =  queryOptions?.queryKey ?? getGetNextPendingItemQueryKey(batchId);
 
-  return {
-    queryKey,
-    queryFn,
-    enabled: itemId !== null && itemId !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<Awaited<ReturnType<typeof getItem>>, TError, TData> & {
-    queryKey: QueryKey;
-  };
-};
 
-export type GetItemQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getItem>>
->;
-export type GetItemQueryError = ErrorType<ApiErrorResponse>;
 
-export function useGetItem<
-  TData = Awaited<ReturnType<typeof getItem>>,
-  TError = ErrorType<ApiErrorResponse>,
->(
-  itemId: string,
-  options?: {
-    query?: UseQueryOptions<Awaited<ReturnType<typeof getItem>>, TError, TData>;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetItemQueryOptions(itemId, options);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNextPendingItem>>> = ({ signal }) => getNextPendingItem(batchId, { signal, ...requestOptions });
 
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
+
+
+
+
+   return  { queryKey, queryFn, enabled: batchId !== null && batchId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNextPendingItem>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetNextPendingItemQueryResult = NonNullable<Awaited<ReturnType<typeof getNextPendingItem>>>
+export type GetNextPendingItemQueryError = ErrorType<unknown>
+
+
+
+export function useGetNextPendingItem<TData = Awaited<ReturnType<typeof getNextPendingItem>>, TError = ErrorType<unknown>>(
+ batchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNextPendingItem>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetNextPendingItemQueryOptions(batchId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
   return withQueryKey(query, queryOptions.queryKey);
 }
 
-export const getSaveItemDraftUrl = (itemId: string) => {
-  return `/api/items/${itemId}/draft`;
-};
 
-export const saveItemDraft = async (
-  itemId: string,
-  saveItemRequest: SaveItemRequest,
-  options?: Parameters<typeof customFetch>[1],
-): Promise<DraftWriteResponse> => {
-  return customFetch<DraftWriteResponse>(getSaveItemDraftUrl(itemId), {
+
+
+
+
+
+export const getGetItemUrl = (itemId: string,) => {
+
+
+
+
+  return `/api/items/${itemId}`
+}
+
+export const getItem = async (itemId: string, options?: Parameters<typeof customFetch>[1]): Promise<ListingItem> => {
+
+  return customFetch<ListingItem>(getGetItemUrl(itemId),
+  {
     ...options,
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(saveItemRequest),
-  });
-};
+    method: 'GET'
 
-export const getSaveItemDraftMutationOptions = <
-  TError = ErrorType<ApiErrorResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof saveItemDraft>>,
-    TError,
-    { itemId: string; data: BodyType<SaveItemRequest> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof saveItemDraft>>,
-  TError,
-  { itemId: string; data: BodyType<SaveItemRequest> },
-  TContext
-> => {
-  const mutationKey = ["saveItemDraft"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof saveItemDraft>>,
-    { itemId: string; data: BodyType<SaveItemRequest> }
-  > = (props) => {
-    const { itemId, data } = props ?? {};
+  }
+);}
 
-    return saveItemDraft(itemId, data, requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
 
-export type SaveItemDraftMutationResult = NonNullable<
-  Awaited<ReturnType<typeof saveItemDraft>>
->;
-export type SaveItemDraftMutationBody = BodyType<SaveItemRequest>;
-export type SaveItemDraftMutationError = ErrorType<ApiErrorResponse>;
 
-export const useSaveItemDraft = <
-  TError = ErrorType<ApiErrorResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof saveItemDraft>>,
-    TError,
-    { itemId: string; data: BodyType<SaveItemRequest> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof saveItemDraft>>,
-  TError,
-  { itemId: string; data: BodyType<SaveItemRequest> },
-  TContext
-> => {
-  return useMutation(getSaveItemDraftMutationOptions(options));
-};
 
-export const getSaveItemAnswerUrl = (itemId: string) => {
-  return `/api/items/${itemId}/answer`;
-};
+export const getGetItemQueryKey = (itemId: string,) => {
+    return [
+    `/api/items/${itemId}`
+    ] as const;
+    }
 
-export const saveItemAnswer = async (
-  itemId: string,
-  saveItemRequest: SaveItemRequest,
-  options?: Parameters<typeof customFetch>[1],
-): Promise<ItemWriteResponse> => {
-  return customFetch<ItemWriteResponse>(getSaveItemAnswerUrl(itemId), {
+
+export const getGetItemQueryOptions = <TData = Awaited<ReturnType<typeof getItem>>, TError = ErrorType<ApiErrorResponse>>(itemId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getItem>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetItemQueryKey(itemId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getItem>>> = ({ signal }) => getItem(itemId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: itemId !== null && itemId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getItem>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetItemQueryResult = NonNullable<Awaited<ReturnType<typeof getItem>>>
+export type GetItemQueryError = ErrorType<ApiErrorResponse>
+
+
+
+export function useGetItem<TData = Awaited<ReturnType<typeof getItem>>, TError = ErrorType<ApiErrorResponse>>(
+ itemId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getItem>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetItemQueryOptions(itemId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveItemDraftUrl = (itemId: string,) => {
+
+
+
+
+  return `/api/items/${itemId}/draft`
+}
+
+export const saveItemDraft = async (itemId: string,
+    saveDraftRequest: SaveDraftRequest, options?: Parameters<typeof customFetch>[1]): Promise<DraftWriteResponse> => {
+
+  return customFetch<DraftWriteResponse>(getSaveItemDraftUrl(itemId),
+  {
     ...options,
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(saveItemRequest),
-  });
-};
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(saveDraftRequest)
+  }
+);}
 
-export const getSaveItemAnswerMutationOptions = <
-  TError = ErrorType<ApiErrorResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof saveItemAnswer>>,
-    TError,
-    { itemId: string; data: BodyType<SaveItemRequest> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof saveItemAnswer>>,
-  TError,
-  { itemId: string; data: BodyType<SaveItemRequest> },
-  TContext
-> => {
-  const mutationKey = ["saveItemAnswer"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof saveItemAnswer>>,
-    { itemId: string; data: BodyType<SaveItemRequest> }
-  > = (props) => {
-    const { itemId, data } = props ?? {};
 
-    return saveItemAnswer(itemId, data, requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
 
-export type SaveItemAnswerMutationResult = NonNullable<
-  Awaited<ReturnType<typeof saveItemAnswer>>
->;
-export type SaveItemAnswerMutationBody = BodyType<SaveItemRequest>;
-export type SaveItemAnswerMutationError = ErrorType<ApiErrorResponse>;
+export const getSaveItemDraftMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveItemDraft>>, TError,{itemId: string;data: BodyType<SaveDraftRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveItemDraft>>, TError,{itemId: string;data: BodyType<SaveDraftRequest>}, TContext> => {
 
-export const useSaveItemAnswer = <
-  TError = ErrorType<ApiErrorResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof saveItemAnswer>>,
-    TError,
-    { itemId: string; data: BodyType<SaveItemRequest> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof saveItemAnswer>>,
-  TError,
-  { itemId: string; data: BodyType<SaveItemRequest> },
-  TContext
-> => {
-  return useMutation(getSaveItemAnswerMutationOptions(options));
-};
+const mutationKey = ['saveItemDraft'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-export const getMarkItemNeedsReviewUrl = (itemId: string) => {
-  return `/api/items/${itemId}/needs-review`;
-};
 
-export const markItemNeedsReview = async (
-  itemId: string,
-  needsReviewRequest: NeedsReviewRequest,
-  options?: Parameters<typeof customFetch>[1],
-): Promise<ItemWriteResponse> => {
-  return customFetch<ItemWriteResponse>(getMarkItemNeedsReviewUrl(itemId), {
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveItemDraft>>, {itemId: string;data: BodyType<SaveDraftRequest>}> = (props) => {
+          const {itemId,data} = props ?? {};
+
+          return  saveItemDraft(itemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveItemDraftMutationResult = NonNullable<Awaited<ReturnType<typeof saveItemDraft>>>
+    export type SaveItemDraftMutationBody = BodyType<SaveDraftRequest>
+    export type SaveItemDraftMutationError = ErrorType<ApiErrorResponse>
+
+    export const useSaveItemDraft = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveItemDraft>>, TError,{itemId: string;data: BodyType<SaveDraftRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveItemDraft>>,
+        TError,
+        {itemId: string;data: BodyType<SaveDraftRequest>},
+        TContext
+      > => {
+      return useMutation(getSaveItemDraftMutationOptions(options));
+    }
+
+export const getSaveItemAnswerUrl = (itemId: string,) => {
+
+
+
+
+  return `/api/items/${itemId}/answer`
+}
+
+export const saveItemAnswer = async (itemId: string,
+    saveItemRequest: SaveItemRequest, options?: Parameters<typeof customFetch>[1]): Promise<ItemWriteResponse> => {
+
+  return customFetch<ItemWriteResponse>(getSaveItemAnswerUrl(itemId),
+  {
     ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(needsReviewRequest),
-  });
-};
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(saveItemRequest)
+  }
+);}
 
-export const getMarkItemNeedsReviewMutationOptions = <
-  TError = ErrorType<ApiErrorResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof markItemNeedsReview>>,
-    TError,
-    { itemId: string; data: BodyType<NeedsReviewRequest> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof markItemNeedsReview>>,
-  TError,
-  { itemId: string; data: BodyType<NeedsReviewRequest> },
-  TContext
-> => {
-  const mutationKey = ["markItemNeedsReview"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof markItemNeedsReview>>,
-    { itemId: string; data: BodyType<NeedsReviewRequest> }
-  > = (props) => {
-    const { itemId, data } = props ?? {};
 
-    return markItemNeedsReview(itemId, data, requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
 
-export type MarkItemNeedsReviewMutationResult = NonNullable<
-  Awaited<ReturnType<typeof markItemNeedsReview>>
->;
-export type MarkItemNeedsReviewMutationBody = BodyType<NeedsReviewRequest>;
-export type MarkItemNeedsReviewMutationError = ErrorType<ApiErrorResponse>;
+export const getSaveItemAnswerMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveItemAnswer>>, TError,{itemId: string;data: BodyType<SaveItemRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveItemAnswer>>, TError,{itemId: string;data: BodyType<SaveItemRequest>}, TContext> => {
 
-export const useMarkItemNeedsReview = <
-  TError = ErrorType<ApiErrorResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof markItemNeedsReview>>,
-    TError,
-    { itemId: string; data: BodyType<NeedsReviewRequest> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof markItemNeedsReview>>,
-  TError,
-  { itemId: string; data: BodyType<NeedsReviewRequest> },
-  TContext
-> => {
-  return useMutation(getMarkItemNeedsReviewMutationOptions(options));
-};
+const mutationKey = ['saveItemAnswer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveItemAnswer>>, {itemId: string;data: BodyType<SaveItemRequest>}> = (props) => {
+          const {itemId,data} = props ?? {};
+
+          return  saveItemAnswer(itemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveItemAnswerMutationResult = NonNullable<Awaited<ReturnType<typeof saveItemAnswer>>>
+    export type SaveItemAnswerMutationBody = BodyType<SaveItemRequest>
+    export type SaveItemAnswerMutationError = ErrorType<ApiErrorResponse>
+
+    export const useSaveItemAnswer = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveItemAnswer>>, TError,{itemId: string;data: BodyType<SaveItemRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveItemAnswer>>,
+        TError,
+        {itemId: string;data: BodyType<SaveItemRequest>},
+        TContext
+      > => {
+      return useMutation(getSaveItemAnswerMutationOptions(options));
+    }
+
+export const getMarkItemNeedsReviewUrl = (itemId: string,) => {
+
+
+
+
+  return `/api/items/${itemId}/needs-review`
+}
+
+export const markItemNeedsReview = async (itemId: string,
+    needsReviewRequest: NeedsReviewRequest, options?: Parameters<typeof customFetch>[1]): Promise<ItemWriteResponse> => {
+
+  return customFetch<ItemWriteResponse>(getMarkItemNeedsReviewUrl(itemId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(needsReviewRequest)
+  }
+);}
+
+
+
+
+
+export const getMarkItemNeedsReviewMutationOptions = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markItemNeedsReview>>, TError,{itemId: string;data: BodyType<NeedsReviewRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markItemNeedsReview>>, TError,{itemId: string;data: BodyType<NeedsReviewRequest>}, TContext> => {
+
+const mutationKey = ['markItemNeedsReview'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markItemNeedsReview>>, {itemId: string;data: BodyType<NeedsReviewRequest>}> = (props) => {
+          const {itemId,data} = props ?? {};
+
+          return  markItemNeedsReview(itemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkItemNeedsReviewMutationResult = NonNullable<Awaited<ReturnType<typeof markItemNeedsReview>>>
+    export type MarkItemNeedsReviewMutationBody = BodyType<NeedsReviewRequest>
+    export type MarkItemNeedsReviewMutationError = ErrorType<ApiErrorResponse>
+
+    export const useMarkItemNeedsReview = <TError = ErrorType<ApiErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markItemNeedsReview>>, TError,{itemId: string;data: BodyType<NeedsReviewRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markItemNeedsReview>>,
+        TError,
+        {itemId: string;data: BodyType<NeedsReviewRequest>},
+        TContext
+      > => {
+      return useMutation(getMarkItemNeedsReviewMutationOptions(options));
+    }

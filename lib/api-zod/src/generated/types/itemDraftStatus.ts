@@ -6,13 +6,13 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export type ItemDraftStatus =
-  (typeof ItemDraftStatus)[keyof typeof ItemDraftStatus];
+export type ItemDraftStatus = typeof ItemDraftStatus[keyof typeof ItemDraftStatus];
+
 
 export const ItemDraftStatus = {
-  new: "new",
-  editing: "editing",
-  restored: "restored",
-  submitted: "submitted",
-  needs_review: "needs_review",
+  new: 'new',
+  editing: 'editing',
+  restored: 'restored',
+  submitted: 'submitted',
+  needs_review: 'needs_review',
 } as const;

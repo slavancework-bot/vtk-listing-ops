@@ -7,15 +7,8 @@
  */
 import type { ItemDraft } from './itemDraft';
 
-export interface ListingItem {
-  id: string;
-  batchId: string;
-  sku: string;
-  status: string;
-  /** @minimum 1 */
-  version: number;
+export interface SaveDraftRequest {
+  draft: ItemDraft;
   /** @minimum 0 */
-  draftVersion: number;
-  draft?: ItemDraft | null;
-  [key: string]: unknown;
- }
+  expectedDraftVersion: number;
+}

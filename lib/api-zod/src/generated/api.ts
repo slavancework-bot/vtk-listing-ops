@@ -154,6 +154,8 @@ export const ListBatchItemsParams = zod.object({
   batchId: zod.uuid(),
 });
 
+export const listBatchItemsResponseItemsItemDraftVersionMin = 0;
+
 export const ListBatchItemsResponse = zod.object({
   items: zod.array(
     zod.object({
@@ -162,6 +164,9 @@ export const ListBatchItemsResponse = zod.object({
       sku: zod.string(),
       status: zod.string(),
       version: zod.int().min(1),
+      draftVersion: zod
+        .int()
+        .min(listBatchItemsResponseItemsItemDraftVersionMin),
       draft: zod
         .union([
           zod.object({
@@ -207,6 +212,8 @@ export const GetNextPendingItemParams = zod.object({
   batchId: zod.uuid(),
 });
 
+export const getNextPendingItemResponseItemOneDraftVersionMin = 0;
+
 export const GetNextPendingItemResponse = zod.object({
   item: zod.union([
     zod.object({
@@ -215,6 +222,9 @@ export const GetNextPendingItemResponse = zod.object({
       sku: zod.string(),
       status: zod.string(),
       version: zod.int().min(1),
+      draftVersion: zod
+        .int()
+        .min(getNextPendingItemResponseItemOneDraftVersionMin),
       draft: zod
         .union([
           zod.object({
@@ -261,12 +271,15 @@ export const GetItemParams = zod.object({
   itemId: zod.uuid(),
 });
 
+export const getItemResponseDraftVersionMin = 0;
+
 export const GetItemResponse = zod.object({
   id: zod.uuid(),
   batchId: zod.uuid(),
   sku: zod.string(),
   status: zod.string(),
   version: zod.int().min(1),
+  draftVersion: zod.int().min(getItemResponseDraftVersionMin),
   draft: zod
     .union([
       zod.object({
@@ -302,6 +315,8 @@ export const SaveItemDraftParams = zod.object({
   itemId: zod.uuid(),
 });
 
+export const saveItemDraftBodyExpectedDraftVersionMin = 0;
+
 export const SaveItemDraftBody = zod.object({
   draft: zod.object({
     itemId: zod.uuid(),
@@ -327,6 +342,7 @@ export const SaveItemDraftBody = zod.object({
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
   }),
+  expectedDraftVersion: zod.int().min(saveItemDraftBodyExpectedDraftVersionMin),
 });
 
 export const SaveItemDraftResponse = zod.object({
