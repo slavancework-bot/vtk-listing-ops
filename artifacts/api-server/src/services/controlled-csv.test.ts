@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 import { ApiFault } from "../lib/errors";
-import { CONTROLLED_HEADERS, MAX_IMPORT_BYTES, escapeCsvOutputValue, parseControlledCsv, safeFilename } from "./controlled-csv";
+import { CONTROLLED_HEADERS, MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, escapeCsvOutputValue, parseControlledCsv, safeFilename } from "./controlled-csv";
 
 const fixtureUrl=new URL("../../../../fixtures/phase2-controlled-eight-scenarios-v1.csv",import.meta.url);
 test("controlled fixture parses eight deterministic scenarios and preserves original values",async()=>{const content=await readFile(fixtureUrl,"utf8");const result=parseControlledCsv({filename:"fixture.csv",mimeType:"text/csv",content});assert.equal(result.rows.length,8);assert.equal(result.rows[0].original.scenario,"A");assert.equal(result.rows[7].normalized.scenario,"H");assert.match(result.checksum,/^[a-f0-9]{64}$/);});
@@ -10,3 +10,7 @@ test("upload boundary rejects extension, MIME, size, schema, headers, malformed 
 test("filename metadata is reduced to a safe leaf and cannot control storage keys",()=>{assert.equal(safeFilename("../../secrets/evil name.csv"),"evil_name.csv");assert.equal(safeFilename("..\\..\\escape.csv"),"escape.csv");});
 test("future spreadsheet CSV output neutralizes formula prefixes",()=>{for(const value of ["=1+1"," +SUM(A1:A2)","-2+3","@cmd"])assert.equal(escapeCsvOutputValue(value)[0],"'");assert.equal(escapeCsvOutputValue("safe"),"safe");});
 test("controlled CSV supports quoted commas, escaped quotes, BOM, CRLF, newlines, and trailing blanks",async()=>{const content=await readFile(fixtureUrl,"utf8");const changed=`\uFEFF${content.replace(/\n/g,"\r\n").replace("HP EliteBook 840 G6 Ultrabook",'"HP EliteBook, ""840"" G6\r\nUltrabook"')}`;const parsed=parseControlledCsv({filename:"edge.csv",mimeType:"text/csv",content:changed});assert.equal(parsed.rows.length,8);assert.equal(parsed.rows[0].original.short_description,'HP EliteBook, "840" G6\nUltrabook');assert.equal(parsed.rows[0].original.warning,"");});
+
+test("controlled CSV accepts exactly 1000 rows and rejects 1001",()=>{const header=CONTROLLED_HEADERS.join(",");const row="vtk-controlled-test-v1,A,S,VTK,M,,T,,[],false,[],";const exact=[header,...Array.from({length:MAX_IMPORT_ROWS},()=>row)].join("\n");assert.ok(Buffer.byteLength(exact)<MAX_IMPORT_BYTES);assert.equal(parseControlledCsv({filename:"rows.csv",mimeType:"text/csv",content:exact}).rows.length,MAX_IMPORT_ROWS);assert.throws(()=>parseControlledCsv({filename:"rows.csv",mimeType:"text/csv",content:`${exact}\n${row}`}),/1000/);});
+
+test("controlled CSV accepts the inclusive byte limit and rejects one byte more",async()=>{const content=(await readFile(fixtureUrl,"utf8")).trimEnd();const [header,row]=content.split("\n");const base=`${header}\n${row}`;const padding="x".repeat(MAX_IMPORT_BYTES-Buffer.byteLength(base));const exact=`${base}${padding}`;assert.equal(Buffer.byteLength(exact),MAX_IMPORT_BYTES);assert.equal(parseControlledCsv({filename:"bytes.csv",mimeType:"text/csv",content:exact}).rows.length,1);assert.throws(()=>parseControlledCsv({filename:"bytes.csv",mimeType:"text/csv",content:`${exact}x`}),/262144/);});

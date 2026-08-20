@@ -22,9 +22,9 @@ Employees may enumerate, read, draft, complete, or mark Needs Review only for ba
 
 ## Storage and parser policy
 
-The filesystem root must be a dedicated operator-controlled nonproduction directory, not a symlink/reparse point. UUID keys are generated internally, containment checked, and created exclusively. Failed imports remove the staged file.
+The filesystem root must be a dedicated operator-controlled nonproduction directory. The adapter walks every existing root component with `lstat` before and after root creation and fails closed on symbolic-link, junction, or reparse-point redirects. It establishes a canonical `realpath`, requires that identity to remain stable at every store/remove boundary, verifies the created target's canonical path remains under that root, and refuses redirected removal targets. UUID keys are generated internally and files are created exclusively. Failed imports remove the staged file. These checks reduce portable path-redirection and root-replacement risk; the nonproduction adapter is not a substitute for an approved object store or OS-level directory-handle confinement in production.
 
-The bounded CSV parser supports BOM/CRLF, commas, escaped quotes, and newlines inside quoted fields while preserving the 256 KiB and 1,000-row limits. CI timings are operational observations, not an SLA; no cache, queue, or other performance infrastructure was added.
+The bounded CSV parser supports BOM/CRLF, commas, escaped quotes, and newlines inside quoted fields. Both limits are inclusive: a valid 256 KiB document and exactly 1,000 data rows are accepted; one additional byte or row is rejected. CI timings are operational observations, not an SLA; no cache, queue, or other performance infrastructure was added.
 
 ## Provider owner actions
 
