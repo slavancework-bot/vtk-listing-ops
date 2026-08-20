@@ -8,7 +8,8 @@ import { StatusPanel } from "../components/StatusPanel";
 import { SaveNextButton } from "../components/SaveNextButton";
 import { KeyboardHelpOverlay } from "../components/KeyboardHelpOverlay";
 import { MOCK_SCENARIOS, ConditionValue, ItemScenario } from "../data/mockData";
-import { loadBatch, loadProgress, saveDraft, saveFinal, toScenario, type ServerProgress } from "../data/serverApi";
+import { loadBatch, loadItem, loadProgress, saveDraft, saveFinal, toScenario, type ServerProgress } from "../data/serverApi";
+import { reviewSemanticPayload, type ReviewReason } from "../data/reviewOperation";
 import { CONDITION_SHORTCUTS, getIncludedShortcut, getIncludedShortcuts } from "../data/keyboardShortcuts";
 import { CheckCircle2, Keyboard, AlertTriangle, Flag } from "lucide-react";
 import {
@@ -131,7 +132,7 @@ export default function EmployeeScreen() {
   const transitionLockRef = useRef(false);
   const draftVersionsRef=useRef(new Map<string,number>());
   const draftSaveChainsRef=useRef(new Map<string,Promise<void>>());
-  const operationKeysRef=useRef(new Map<string,{key:string;payload:string}>());
+  const operationKeysRef=useRef(new Map<string,{key:string;payload:string;semantic:string}>());
 
   const TOTAL_ITEMS = scenarios.length;
   const scenario = scenarios[currentIndex];
@@ -234,7 +235,7 @@ export default function EmployeeScreen() {
 
     let authoritativeVersion=validation.normalizedAnswer.itemVersion+1;
     let authoritativeNextId:string|null=null;
-    const operationId=`answer:${validation.normalizedAnswer.itemId}`;const payload=JSON.stringify(validation.normalizedAnswer);const priorOperation=operationKeysRef.current.get(operationId);const operation=priorOperation?.payload===payload?priorOperation:{key:crypto.randomUUID(),payload};operationKeysRef.current.set(operationId,operation);const operationKey=operation.key;
+    const operationId=`answer:${validation.normalizedAnswer.itemId}`;const payload=JSON.stringify(validation.normalizedAnswer);const priorOperation=operationKeysRef.current.get(operationId);const operation=priorOperation?.payload===payload?priorOperation:{key:crypto.randomUUID(),payload,semantic:payload};operationKeysRef.current.set(operationId,operation);const operationKey=operation.key;
     try { if(serverMode){await (draftSaveChainsRef.current.get(validation.normalizedAnswer.itemId)??Promise.resolve());const result=await saveFinal(validation.normalizedAnswer.itemId,validation.normalizedAnswer,false,operationKey);authoritativeVersion=result.itemVersion;authoritativeNextId=result.nextItemId;operationKeysRef.current.delete(operationId);} } catch(error){transitionLockRef.current=false;setIsSubmitting(false);setLoadError(error instanceof Error?error.message:"Save failed. Retry when the service is available.");return;}
     const nextStates = new Map(itemStatesRef.current);
     nextStates.set(currentIndex, {
@@ -273,10 +274,25 @@ export default function EmployeeScreen() {
     setIsSubmitting(true);
 
     const candidateDraft=itemStatesRef.current.get(currentIndex) ?? createDefaultItemDraft(scenario,versions[currentIndex]??1);
-    const operationId=`review:${candidateDraft.itemId}`;const priorOperation=operationKeysRef.current.get(operationId);
+    const reason:ReviewReason={code:"workflow_exception",note:"Employee requested review."};
+    const operationId=`review:${candidateDraft.itemId}`;let priorOperation=operationKeysRef.current.get(operationId);
+    const candidateSemantic=reviewSemanticPayload(candidateDraft,reason);
+    if(priorOperation&&priorOperation.semantic!==candidateSemantic){
+      try{
+        const authoritative=await loadItem(candidateDraft.itemId);
+        if(authoritative.status==="needs_review"||authoritative.status==="completed"||authoritative.status==="reviewed"||authoritative.status==="exported"){
+          operationKeysRef.current.delete(operationId);
+          const preserved=new Map(itemStatesRef.current);preserved.set(currentIndex,{...candidateDraft,status:"needs_review",itemVersion:authoritative.version});itemStatesRef.current=preserved;setItemStates(preserved);
+          setVersions((current)=>current.map((value,index)=>index===currentIndex?authoritative.version:value));
+          await refreshProgress().catch(()=>undefined);
+          transitionLockRef.current=false;setIsSubmitting(false);setLoadError("Item was already marked Needs Review with the prior saved response. Your newer changes remain visible; dismiss this message, then navigate to continue.");return;
+        }
+        operationKeysRef.current.delete(operationId);priorOperation=undefined;
+      }catch(error){transitionLockRef.current=false;setIsSubmitting(false);setLoadError(error instanceof Error?`Could not reconcile the prior Needs Review attempt: ${error.message}`:"Could not reconcile the prior Needs Review attempt.");return;}
+    }
     const draft=priorOperation?JSON.parse(priorOperation.payload) as ItemDraft:candidateDraft;
     let authoritativeVersion=draft.itemVersion+1;let authoritativeNextId:string|null=null;
-    const payload=JSON.stringify(draft);const operation=priorOperation??{key:crypto.randomUUID(),payload};operationKeysRef.current.set(operationId,operation);const operationKey=operation.key;
+    const payload=JSON.stringify(draft);const semantic=reviewSemanticPayload(draft,reason);const operation=priorOperation??{key:crypto.randomUUID(),payload,semantic};operationKeysRef.current.set(operationId,operation);const operationKey=operation.key;
     try{if(serverMode){await (draftSaveChainsRef.current.get(draft.itemId)??Promise.resolve());const result=await saveFinal(draft.itemId,draft,true,operationKey);authoritativeVersion=result.itemVersion;authoritativeNextId=result.nextItemId;operationKeysRef.current.delete(operationId);}}catch(error){transitionLockRef.current=false;setIsSubmitting(false);setLoadError(error instanceof Error?error.message:"Needs Review was not saved. Retry.");return;}
     const nextStates = new Map(itemStatesRef.current);
     nextStates.set(currentIndex, {

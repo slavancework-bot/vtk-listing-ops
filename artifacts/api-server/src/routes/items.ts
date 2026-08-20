@@ -30,7 +30,9 @@ export function createItemRouter(service: ItemWriteService, access?: Phase2Servi
       if (parsed.data.draft.itemId !== params.data.itemId) throw new ApiFault(400, "VALIDATION_ERROR", "Route item ID does not match the draft item ID.");
       if (typeof access?.requireItemAccess === "function") await access.requireItemAccess(params.data.itemId,req.identity!.subject,req.identity!.role,true);
       const draft = { ...parsed.data.draft, createdAt: parsed.data.draft.createdAt.toISOString(), updatedAt: parsed.data.draft.updatedAt.toISOString() } as ItemDraft;
-      const result=await service.save({ idempotencyKey: req.header("idempotency-key") ?? "", actorId: req.identity!.subject, correlationId: req.correlationId, draft, reviewReason: parsed.data.reason });if(process.env.PHASE2_E2E==="true"&&process.env.NODE_ENV==="test"&&process.env.APP_ENV==="staging"&&req.header("x-test-drop-response-after-commit")==="true"){req.socket.destroy();return;}res.json(result);
+      const testFault=process.env.PHASE2_E2E==="true"&&process.env.NODE_ENV==="test"&&process.env.APP_ENV==="staging";
+      if(testFault&&req.header("x-test-fail-before-commit")==="true")throw new ApiFault(503,"SYSTEM_ERROR","Injected pre-commit review failure.");
+      const result=await service.save({ idempotencyKey: req.header("idempotency-key") ?? "", actorId: req.identity!.subject, correlationId: req.correlationId, draft, reviewReason: parsed.data.reason });if(testFault&&req.header("x-test-drop-response-after-commit")==="true"){req.socket.destroy();return;}res.json(result);
     } catch (error) { next(error); }
   });
   return router;
