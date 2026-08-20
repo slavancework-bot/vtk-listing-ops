@@ -33,7 +33,7 @@ jobs:
       - run: pnpm test
       - run: pnpm --filter @workspace/api-server test:postgres
       - run: pnpm --filter @workspace/api-server migrate
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm --filter @workspace/vtk-listing-ops exec playwright install --with-deps chromium
       - run: pnpm --filter @workspace/vtk-listing-ops test:browser
         env:
           PHASE2_E2E: "true"
