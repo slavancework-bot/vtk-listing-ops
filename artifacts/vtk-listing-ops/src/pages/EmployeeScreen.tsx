@@ -272,9 +272,11 @@ export default function EmployeeScreen() {
     transitionLockRef.current = true;
     setIsSubmitting(true);
 
-    const draft=itemStatesRef.current.get(currentIndex) ?? createDefaultItemDraft(scenario,versions[currentIndex]??1);
+    const candidateDraft=itemStatesRef.current.get(currentIndex) ?? createDefaultItemDraft(scenario,versions[currentIndex]??1);
+    const operationId=`review:${candidateDraft.itemId}`;const priorOperation=operationKeysRef.current.get(operationId);
+    const draft=priorOperation?JSON.parse(priorOperation.payload) as ItemDraft:candidateDraft;
     let authoritativeVersion=draft.itemVersion+1;let authoritativeNextId:string|null=null;
-    const operationId=`review:${draft.itemId}`;const payload=JSON.stringify(draft);const priorOperation=operationKeysRef.current.get(operationId);const operation=priorOperation?.payload===payload?priorOperation:{key:crypto.randomUUID(),payload};operationKeysRef.current.set(operationId,operation);const operationKey=operation.key;
+    const payload=JSON.stringify(draft);const operation=priorOperation??{key:crypto.randomUUID(),payload};operationKeysRef.current.set(operationId,operation);const operationKey=operation.key;
     try{if(serverMode){await (draftSaveChainsRef.current.get(draft.itemId)??Promise.resolve());const result=await saveFinal(draft.itemId,draft,true,operationKey);authoritativeVersion=result.itemVersion;authoritativeNextId=result.nextItemId;operationKeysRef.current.delete(operationId);}}catch(error){transitionLockRef.current=false;setIsSubmitting(false);setLoadError(error instanceof Error?error.message:"Needs Review was not saved. Retry.");return;}
     const nextStates = new Map(itemStatesRef.current);
     nextStates.set(currentIndex, {
