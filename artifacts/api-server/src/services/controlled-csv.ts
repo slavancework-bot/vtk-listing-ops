@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { ApiFault } from "../lib/errors";
+import { parsePersistedQuestionConfiguration } from "@workspace/domain";
 
 export const CONTROLLED_SCHEMA_VERSION = "vtk-controlled-test-v1";
 export const CONTROLLED_HEADERS = ["schema_version", "scenario", "sku", "manufacturer", "model", "mpn", "title", "short_description", "included_questions", "condition_required", "conditional_fields", "warning"] as const;
@@ -45,9 +46,10 @@ export function parseControlledCsv(input: { filename: string; mimeType: string; 
     const original = Object.fromEntries(headers.map((header, column) => [header, values[column]]));
     if (original.schema_version !== CONTROLLED_SCHEMA_VERSION) throw new ApiFault(422, "UNSUPPORTED_SCHEMA_VERSION", `Row ${index + 2} does not use ${CONTROLLED_SCHEMA_VERSION}.`);
     for (const key of ["scenario", "sku", "manufacturer", "model", "title"]) if (!original[key]?.trim()) throw new ApiFault(422, "INVALID_CSV", `Row ${index + 2} is missing ${key}.`);
-    const includedQuestions = parseJsonArray(original.included_questions, "included_questions");
-    const conditionalFields = parseJsonArray(original.conditional_fields, "conditional_fields");
-    return { rowNumber: index + 2, original, normalized: { manufacturer: original.manufacturer.trim(), model: original.model.trim(), mpn: original.mpn.trim() || undefined, title: original.title.trim(), shortDescription: original.short_description.trim() || undefined, scenario: original.scenario.trim() }, questions: { includedQuestions, conditionRequired: original.condition_required.toLowerCase() === "true", conditionalFields } };
+    const includedQuestions = parseJsonArray(original.included_questions, "included_questions").map((value,questionIndex)=>({...value as Record<string,unknown>,displayOrder:questionIndex+1,shortcutPosition:questionIndex<10?questionIndex+1:undefined}));
+    const conditionalFields = parseJsonArray(original.conditional_fields, "conditional_fields").map((value,fieldIndex)=>{const field:Record<string,unknown>={...(value as Record<string,unknown>),displayOrder:fieldIndex+1};if(field.kind==="qty_to_list"&&field.validation===undefined)field.validation={kind:"number",integer:true,min:1};return field;});
+    let questions:Record<string,unknown>;try{questions=parsePersistedQuestionConfiguration({ includedQuestions, conditionRequired: original.condition_required.toLowerCase() === "true", conditionalFields }) as unknown as Record<string,unknown>;}catch(error){throw new ApiFault(422,"INVALID_CSV",`Row ${index+2} has invalid question configuration: ${error instanceof Error?error.message:"invalid configuration"}`);}
+    return { rowNumber: index + 2, original, normalized: { manufacturer: original.manufacturer.trim(), model: original.model.trim(), mpn: original.mpn.trim() || undefined, title: original.title.trim(), shortDescription: original.short_description.trim() || undefined, scenario: original.scenario.trim() }, questions };
   });
   return { rows, checksum: createHash("sha256").update(bytes).digest("hex"), bytes };
 }
