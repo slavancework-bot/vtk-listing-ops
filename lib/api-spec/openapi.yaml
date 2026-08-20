@@ -1,36 +1,92 @@
 openapi: 3.1.0
-info:
-  # Do not change the title, if the title changes, the import paths will be broken
-  title: Api
-  version: 0.1.0
-  description: API specification
-servers:
-  - url: /api
-    description: Base API path
-tags:
-  - name: health
-    description: Health operations
+info: { title: Api, version: 0.1.1, description: Implemented Phase 1 API surface only }
+servers: [{ url: /api }]
+tags: [{ name: health }, { name: employee }]
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
-      summary: Health check
-      description: Returns server health status
+      security: []
       responses:
-        "200":
-          description: Healthy
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HealthStatus"
+        "200": { description: Healthy, content: { application/json: { schema: { $ref: "#/components/schemas/HealthStatus" } } } }
+  /items/{itemId}/answer:
+    parameters: [{ $ref: "#/components/parameters/ItemId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
+    put:
+      operationId: saveItemAnswer
+      tags: [employee]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SaveItemRequest" } } } }
+      responses:
+        "200": { description: Answer saved or replayed, content: { application/json: { schema: { $ref: "#/components/schemas/ItemWriteResponse" } } } }
+        "400": { $ref: "#/components/responses/ApiError" }
+        "401": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "404": { $ref: "#/components/responses/ApiError" }
+        "409": { $ref: "#/components/responses/ApiError" }
+        "422": { $ref: "#/components/responses/ApiError" }
+        "429": { $ref: "#/components/responses/ApiError" }
+        "500": { $ref: "#/components/responses/ApiError" }
+  /items/{itemId}/needs-review:
+    parameters: [{ $ref: "#/components/parameters/ItemId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
+    post:
+      operationId: markItemNeedsReview
+      tags: [employee]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/NeedsReviewRequest" } } } }
+      responses:
+        "200": { description: Review state saved or replayed, content: { application/json: { schema: { $ref: "#/components/schemas/ItemWriteResponse" } } } }
+        "400": { $ref: "#/components/responses/ApiError" }
+        "401": { $ref: "#/components/responses/ApiError" }
+        "403": { $ref: "#/components/responses/ApiError" }
+        "404": { $ref: "#/components/responses/ApiError" }
+        "409": { $ref: "#/components/responses/ApiError" }
+        "422": { $ref: "#/components/responses/ApiError" }
+        "429": { $ref: "#/components/responses/ApiError" }
+        "500": { $ref: "#/components/responses/ApiError" }
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Production OIDC-style bearer contract. No trusted production provider is configured in Phase 1; production startup fails closed. The x-development-user adapter is nonproduction-only and is not a production authentication scheme.
+  parameters:
+    ItemId: { name: itemId, in: path, required: true, schema: { type: string, format: uuid } }
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
+  responses:
+    ApiError: { description: Structured API error, content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
   schemas:
-    HealthStatus:
+    HealthStatus: { type: object, required: [status], properties: { status: { type: string } } }
+    ConditionCode: { type: string, enum: [A, B, C, D] }
+    IncludedItemsAnswer:
       type: object
+      required: [selectedQuestionIds, explicitlyNone]
+      properties: { selectedQuestionIds: { type: array, uniqueItems: true, items: { type: string } }, explicitlyNone: { type: boolean } }
+    ItemDraft:
+      type: object
+      required: [itemId, itemVersion, includedItems, conditionCode, fieldValues, notes, employeeId, status, createdAt, updatedAt]
       properties:
-        status:
-          type: string
-      required:
-        - status
-
+        itemId: { type: string, format: uuid }
+        itemVersion: { type: integer, minimum: 1 }
+        includedItems: { $ref: "#/components/schemas/IncludedItemsAnswer" }
+        conditionCode: { oneOf: [{ $ref: "#/components/schemas/ConditionCode" }, { type: "null" }] }
+        fieldValues: { type: object, additionalProperties: { oneOf: [{ type: string }, { type: number }, { type: boolean }, { type: "null" }] } }
+        notes: { type: string }
+        employeeId: { type: string, minLength: 1 }
+        status: { type: string, enum: [new, editing, restored, submitted, needs_review] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SaveItemRequest: { type: object, required: [draft], properties: { draft: { $ref: "#/components/schemas/ItemDraft" } } }
+    NeedsReviewRequest:
+      type: object
+      required: [draft, reason]
+      properties:
+        draft: { $ref: "#/components/schemas/ItemDraft" }
+        reason: { type: object, required: [code], properties: { code: { type: string, enum: [inventory_discrepancy, item_damage, identity_uncertain, missing_information, workflow_exception, other] }, note: { type: string, maxLength: 2000 } } }
+    ItemWriteResponse:
+      type: object
+      required: [itemId, itemVersion, status, nextItemId, replayed]
+      properties: { itemId: { type: string, format: uuid }, itemVersion: { type: integer, minimum: 1 }, status: { type: string, enum: [completed, needs_review] }, nextItemId: { oneOf: [{ type: string, format: uuid }, { type: "null" }] }, replayed: { type: boolean } }
+    ApiError:
+      type: object
+      required: [code, message, correlationId]
+      properties: { code: { type: string, enum: [VALIDATION_ERROR, CONFLICT, SYSTEM_ERROR, AI_PROCESSING_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, RATE_LIMITED] }, message: { type: string }, correlationId: { type: string, format: uuid }, fieldErrors: { type: object, additionalProperties: { type: array, items: { type: string } } }, currentVersion: { type: integer } }
+security: [{ bearerAuth: [] }]

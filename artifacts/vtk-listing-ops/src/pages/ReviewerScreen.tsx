@@ -7,7 +7,7 @@ import { MOCK_SCENARIOS } from "../data/mockData";
 import { Check, X, AlertCircle } from "lucide-react";
 
 export default function ReviewerScreen() {
-  const scenario = MOCK_SCENARIOS[0]; // Cisco router
+  const scenario = MOCK_SCENARIOS.find((candidate) => candidate.manufacturer === "Cisco") ?? MOCK_SCENARIOS[0];
   
   const [showSendBack, setShowSendBack] = useState(false);
   const [sendBackReason, setSendBackReason] = useState("");
@@ -25,18 +25,21 @@ export default function ReviewerScreen() {
   // Mock reviewer data based on Cisco scenario
   const employeeChecked = new Set([1, 3]);
   const qaResults: any[] = [
-    { label: "Product Identity", status: "pass" },
-    { label: "Inclusion Questions", status: "pass" },
-    { label: "Category", status: "pass" },
-    { label: "Item Specifics", status: "warning", message: "1 warning" },
-    { label: "Title Length", status: "pass" },
-    { label: "Description Structure", status: "pass" },
-    { label: "SixBit Row Validation", status: "pass" },
+    { label: "Product Identity", status: "warning", message: "Prototype — not verified" },
+    { label: "Inclusion Questions", status: "warning", message: "Prototype — not verified" },
+    { label: "Category", status: "warning", message: "Prototype — not verified" },
+    { label: "Item Specifics", status: "warning", message: "Prototype — not verified" },
+    { label: "Title Length", status: "warning", message: "Prototype — not verified" },
+    { label: "Description Structure", status: "warning", message: "Prototype — not verified" },
+    { label: "SixBit Row Validation", status: "warning", message: "Prototype — not verified" },
   ];
 
   return (
     <div className="fixed inset-0 bg-gray-50 flex flex-col font-sans overflow-hidden">
       <AppHeader />
+      <div className="bg-amber-100 border-b border-amber-300 px-6 py-2 text-center text-sm font-bold text-amber-900">
+        PROTOTYPE DATA — NOT VERIFIED FOR LISTING, PRICING, OR EXPORT
+      </div>
       
       {/* Reviewer Header */}
       <div className="flex items-center justify-between w-full h-12 px-6 bg-white border-b border-gray-200 shrink-0">
@@ -81,7 +84,7 @@ export default function ReviewerScreen() {
               <div>
                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Condition Selected</span>
                 <div className="bg-emerald-100 border-2 border-emerald-500 text-emerald-900 font-bold p-3 rounded-md inline-block">
-                  C - NEW FACTORY SEALED
+                  Prototype condition — not verified
                 </div>
               </div>
             </div>
@@ -93,30 +96,30 @@ export default function ReviewerScreen() {
           
           <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-2 pb-24">
             <ReviewerQASection 
-              category="Computers/Tablets & Networking > Enterprise Networking, Servers > Routers > Enterprise Routers"
-              alternateCategories={["Computers > Networking > Wired Routers"]}
+              category="MOCK CATEGORY — NOT VERIFIED — Enterprise Routers"
+              alternateCategories={["MOCK ALTERNATE — SAMPLE ONLY — Wired Routers"]}
               itemSpecifics={{
-                "Brand": "Cisco",
-                "Model": "C1111-4P",
-                "MPN": "C1111-4P",
-                "Form Factor": "Desktop",
-                "Type": "Enterprise Router"
+                "Brand": "MOCK — Cisco",
+                "Model": "MOCK — C1111-4P",
+                "MPN": "MOCK — C1111-4P",
+                "Form Factor": "SAMPLE ONLY — Desktop",
+                "Type": "SAMPLE ONLY — Enterprise Router"
               }}
               missingSpecifics={["Number of Ports", "Interface"]}
-              proposedTitle="Cisco C1111-4P 4-Port Dual GE WAN Router — FACTORY SEALED"
+              proposedTitle="MOCK TITLE — NOT VERIFIED — Cisco C1111-4P Router"
               titleLength={59}
-              description="New Factory Sealed Cisco 1111 4-Port Dual GE WAN Router (C1111-4P). Guaranteed authentic and ready to deploy in your enterprise environment. Includes all factory original accessories."
+              description="Prototype preview only. Production listing text must be derived from validated employee answers, trusted source data, approved deterministic rules, and schema-validated model output."
               qaResults={qaResults}
             />
             
             <SixBitPreview 
               data={{
-                "Action": "ADD",
-                "Condition": "New",
-                "ProductID": "C1111-4P",
-                "SKU": "VTK-00142",
-                "Price": "$289.99",
-                "Qty": "1"
+                "Action": "MOCK — ADD — NOT VERIFIED",
+                "Condition": "MOCK — NOT VERIFIED",
+                "ProductID": "SAMPLE ONLY — C1111-4P",
+                "SKU": "SAMPLE ONLY — VTK-00142",
+                "Price": "NOT VERIFIED",
+                "Qty": "NOT VERIFIED"
               }}
             />
           </div>

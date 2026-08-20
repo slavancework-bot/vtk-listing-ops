@@ -1,5 +1,10 @@
-import app from "./app";
 import { logger } from "./lib/logger";
+
+if (process.env.NODE_ENV === "production") {
+  throw new Error("A production IdentityProvider adapter must be configured before deployment; the development identity adapter is forbidden.");
+}
+
+const { default: app } = await import("./app");
 
 const rawPort = process.env["PORT"];
 

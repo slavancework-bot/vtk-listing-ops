@@ -1,0 +1,115 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import type { BatchId, EmployeeId, IncludedQuestionId, ItemDraft, ListingItem, ListingItemId } from "@workspace/domain";
+import { ApiFault } from "../lib/errors";
+import { InMemoryItemWriteRepository } from "./in-memory-item-write-repository";
+import { ItemWriteService } from "./item-write-service";
+
+const item: ListingItem = { id: "item-1" as ListingItemId, batchId: "batch-1" as BatchId, sourceRowId: "1", sku: "SKU", manufacturer: "VTK", model: "M", title: "Item", includedQuestions: [{ id: "cord" as IncludedQuestionId, label: "Cord", displayOrder: 1, required: true }], conditionRequired: true, conditionalFields: [], sourceInventoryFields: {}, warnings: [], workflowStatus: "ready_for_employee", version: 1 };
+const draft: ItemDraft = { itemId: item.id, itemVersion: 1, includedItems: { selectedQuestionIds: ["cord" as IncludedQuestionId], explicitlyNone: false }, conditionCode: "D", fieldValues: {}, notes: "", employeeId: "employee-1" as EmployeeId, status: "editing", createdAt: "2026-08-19T00:00:00.000Z", updatedAt: "2026-08-19T00:00:00.000Z" };
+
+test("an identical idempotency retry replays without duplicate answer or audit", async () => {
+  const repository = new InMemoryItemWriteRepository([item]); const service = new ItemWriteService(repository);
+  const first = await service.save({ idempotencyKey: "save-1", actorId: "employee-1", correlationId: "request-1", draft });
+  const second = await service.save({ idempotencyKey: "save-1", actorId: "employee-1", correlationId: "request-2", draft });
+  assert.equal(first.replayed, false); assert.equal(second.replayed, true); assert.equal(repository.answers.size, 1); assert.equal(repository.audits.length, 1);
+});
+test("concurrent identical requests serialize to one execution and one replay", async () => {
+  const repository = new InMemoryItemWriteRepository([item]); const service = new ItemWriteService(repository);
+  const results = await Promise.all([
+    service.save({ idempotencyKey: "concurrent-same", actorId: "employee-1", correlationId: "request-1", draft }),
+    service.save({ idempotencyKey: "concurrent-same", actorId: "employee-1", correlationId: "request-2", draft }),
+  ]);
+  assert.deepEqual(results.map((result) => result.replayed).sort(), [false, true]);
+  assert.equal(repository.answers.size, 1); assert.equal(repository.audits.length, 1);
+  assert.equal(repository.items.get(item.id)?.version, 2); assert.equal(repository.items.get(item.id)?.workflowStatus, "completed");
+  assert.equal(repository.activeIdempotencyRecordCount, 1); assert.equal(repository.activeSynchronizationScopeCount, 0);
+});
+test("concurrent changed payload produces one success and one controlled conflict", async () => {
+  const repository = new InMemoryItemWriteRepository([item]); const service = new ItemWriteService(repository);
+  const outcomes = await Promise.allSettled([
+    service.save({ idempotencyKey: "concurrent-different", actorId: "employee-1", correlationId: "request-1", draft }),
+    service.save({ idempotencyKey: "concurrent-different", actorId: "employee-1", correlationId: "request-2", draft: { ...draft, notes: "changed" } }),
+  ]);
+  assert.equal(outcomes.filter((outcome) => outcome.status === "fulfilled").length, 1);
+  const loser = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
+  assert.ok(loser); assert.ok(loser.reason instanceof ApiFault); assert.equal(loser.reason.status, 409); assert.equal(loser.reason.code, "CONFLICT");
+  assert.equal(repository.answers.size, 1); assert.equal(repository.audits.length, 1); assert.equal(repository.items.get(item.id)?.version, 2);
+  assert.equal(repository.activeIdempotencyRecordCount, 1); assert.equal(repository.activeSynchronizationScopeCount, 0);
+});
+test("reusing an idempotency key for a different request conflicts", async () => {
+  const repository = new InMemoryItemWriteRepository([item]); const service = new ItemWriteService(repository);
+  await service.save({ idempotencyKey: "save-1", actorId: "employee-1", correlationId: "request-1", draft });
+  await assert.rejects(() => service.save({ idempotencyKey: "save-1", actorId: "employee-1", correlationId: "request-2", draft: { ...draft, notes: "changed" } }), (error: unknown) => error instanceof ApiFault && error.status === 409);
+});
+test("stale versions conflict", async () => {
+  const repository = new InMemoryItemWriteRepository([{ ...item, version: 2 }]); const service = new ItemWriteService(repository);
+  await assert.rejects(() => service.save({ idempotencyKey: "save-stale", actorId: "employee-1", correlationId: "request-1", draft }), (error: unknown) => error instanceof ApiFault && error.code === "CONFLICT");
+});
+test("Needs Review persists answers, reason, and one audit event", async () => {
+  const repository = new InMemoryItemWriteRepository([item]); const service = new ItemWriteService(repository);
+  const response = await service.save({ idempotencyKey: "review-1", actorId: "employee-1", correlationId: "request-1", draft: { ...draft, includedItems: { selectedQuestionIds: [], explicitlyNone: false }, conditionCode: null }, reviewReason: { code: "missing_information", note: "Cannot identify cord" } });
+  assert.equal(response.status, "needs_review"); assert.equal(repository.reviews.length, 1); assert.equal(repository.audits[0].action, "needs_review_selected");
+});
+
+test("in-memory idempotency matches production cross-actor and expiration behavior", async () => {
+  let now = 1_000; const otherItem = { ...item, id: "item-2" as ListingItemId }; const repository = new InMemoryItemWriteRepository([item, otherItem], () => now); const service = new ItemWriteService(repository);
+  await service.save({ idempotencyKey: "shared", actorId: "employee-1", correlationId: "request-1", draft });
+  await service.save({ idempotencyKey: "shared", actorId: "employee-2", correlationId: "request-2", draft: { ...draft, itemId: otherItem.id, employeeId: "employee-2" as EmployeeId } });
+  assert.equal(repository.audits.length, 2);
+  const expiringRepo = new InMemoryItemWriteRepository([item], () => now); const expiringService = new ItemWriteService(expiringRepo);
+  await expiringService.save({ idempotencyKey: "expiring", actorId: "employee-1", correlationId: "request-3", draft });
+  now += 24 * 60 * 60 * 1000 + 1;
+  expiringRepo.items.set(item.id, item);
+  const reused = await expiringService.save({ idempotencyKey: "expiring", actorId: "employee-1", correlationId: "request-4", draft: { ...draft, notes: "new payload" } });
+  assert.equal(reused.replayed, false); assert.equal(expiringRepo.audits.length, 2); assert.equal(expiringRepo.activeIdempotencyRecordCount, 1); assert.equal(expiringRepo.activeSynchronizationScopeCount, 0);
+});
+
+test("concurrent cross-actor requests remain isolated and cross-item reuse conflicts", async () => {
+  const otherItem = { ...item, id: "item-2" as ListingItemId }; const repository = new InMemoryItemWriteRepository([item, otherItem]); const service = new ItemWriteService(repository);
+  const actors = await Promise.all([
+    service.save({ idempotencyKey: "shared", actorId: "employee-1", correlationId: "request-1", draft }),
+    service.save({ idempotencyKey: "shared", actorId: "employee-2", correlationId: "request-2", draft: { ...draft, itemId: otherItem.id, employeeId: "employee-2" as EmployeeId } }),
+  ]);
+  assert.deepEqual(actors.map((result) => result.replayed), [false, false]); assert.equal(repository.audits.length, 2); assert.equal(repository.activeIdempotencyRecordCount, 2);
+
+  const first = { ...item, id: "item-3" as ListingItemId }; const second = { ...item, id: "item-4" as ListingItemId }; const crossItemRepository = new InMemoryItemWriteRepository([first, second]); const crossItemService = new ItemWriteService(crossItemRepository);
+  const outcomes = await Promise.allSettled([
+    crossItemService.save({ idempotencyKey: "cross-item", actorId: "employee-1", correlationId: "request-3", draft: { ...draft, itemId: first.id } }),
+    crossItemService.save({ idempotencyKey: "cross-item", actorId: "employee-1", correlationId: "request-4", draft: { ...draft, itemId: second.id } }),
+  ]);
+  assert.equal(outcomes.filter((outcome) => outcome.status === "fulfilled").length, 1);
+  const conflict = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
+  assert.ok(conflict); assert.ok(conflict.reason instanceof ApiFault); assert.equal(conflict.reason.status, 409);
+  assert.equal(crossItemRepository.audits.length, 1); assert.equal(crossItemRepository.activeIdempotencyRecordCount, 1); assert.equal(crossItemRepository.activeSynchronizationScopeCount, 0);
+});
+
+test("failed authoritative operation releases and cleans its synchronization scope", async () => {
+  const repository = new InMemoryItemWriteRepository([item]);
+  const recoveryResponse = { itemId: "00000000-0000-4000-8000-000000000001", itemVersion: 2, status: "completed" as const, nextItemId: null, replayed: false };
+  const outcomes = await Promise.allSettled([
+    repository.executeIdempotent("recover", "employee-1", "first", async () => { throw new Error("forced failure"); }),
+    repository.executeIdempotent("recover", "employee-1", "second", async () => recoveryResponse),
+  ]);
+  assert.equal(outcomes[0].status, "rejected"); assert.match(String((outcomes[0] as PromiseRejectedResult).reason), /forced failure/);
+  assert.equal(outcomes[1].status, "fulfilled"); assert.equal((outcomes[1] as PromiseFulfilledResult<typeof recoveryResponse>).value.replayed, false);
+  assert.equal(repository.activeSynchronizationScopeCount, 0); assert.equal(repository.activeIdempotencyRecordCount, 1);
+});
+
+for (const terminalStatus of ["completed", "reviewed", "exported", "processing_failed"] as const) {
+  test(`rejects an illegal ${terminalStatus} to completed employee transition`, async () => {
+    const repository = new InMemoryItemWriteRepository([{ ...item, workflowStatus: terminalStatus }]);
+    const service = new ItemWriteService(repository);
+    await assert.rejects(() => service.save({ idempotencyKey: `illegal-${terminalStatus}`, actorId: "employee-1", correlationId: "request-1", draft }), (error: unknown) => error instanceof ApiFault && error.status === 409);
+    assert.equal(repository.audits.length, 0);
+  });
+}
+
+for (const terminalStatus of ["reviewed", "exported"] as const) {
+  test(`rejects an illegal ${terminalStatus} to needs_review transition`, async () => {
+    const repository = new InMemoryItemWriteRepository([{ ...item, workflowStatus: terminalStatus }]);
+    const service = new ItemWriteService(repository);
+    await assert.rejects(() => service.save({ idempotencyKey: `illegal-review-${terminalStatus}`, actorId: "employee-1", correlationId: "request-1", draft, reviewReason: { code: "other" } }), (error: unknown) => error instanceof ApiFault && error.status === 409);
+    assert.equal(repository.audits.length, 0);
+  });
+}

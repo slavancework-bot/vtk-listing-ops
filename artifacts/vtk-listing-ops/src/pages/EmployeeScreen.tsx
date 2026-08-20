@@ -10,39 +10,79 @@ import { KeyboardHelpOverlay } from "../components/KeyboardHelpOverlay";
 import { MOCK_SCENARIOS, ConditionValue, ItemScenario } from "../data/mockData";
 import { CONDITION_SHORTCUTS, getIncludedShortcut, getIncludedShortcuts } from "../data/keyboardShortcuts";
 import { CheckCircle2, Keyboard, AlertTriangle, Flag } from "lucide-react";
-
-interface ConditionalFieldValues {
-  qtyToList: string;
-  checkCount: string;
-  stockTotal: string;
-  otherNotes: string;
-}
-
-type ItemStatus = 'pending' | 'complete' | 'needs-review';
-
-interface ItemState {
-  selectedIncluded: number[];
-  includedDecisionMade: boolean;
-  selectedCondition: ConditionValue;
-  fieldValues: ConditionalFieldValues;
-  status: ItemStatus;
-}
+import {
+  validateEmployeeAnswer,
+  type BatchId,
+  type ConditionalFieldId,
+  type EmployeeId,
+  type IncludedQuestionId,
+  type ItemDraft,
+  type ListingItem,
+  type ListingItemId,
+} from "@workspace/domain";
 
 const TOTAL_ITEMS = MOCK_SCENARIOS.length;
 const BATCH_NAME = '2026-08-18-Core-Switches';
 
-function createDefaultItemState(scenario: ItemScenario): ItemState {
+function toListingItem(scenario: ItemScenario): ListingItem {
   return {
-    selectedIncluded: scenario.preSelectedIncluded,
-    includedDecisionMade: false,
-    selectedCondition: scenario.preSelectedCondition,
+    id: scenario.id as ListingItemId,
+    batchId: BATCH_NAME as BatchId,
+    sourceRowId: scenario.id,
+    sku: scenario.sku,
+    manufacturer: scenario.manufacturer,
+    model: scenario.model,
+    mpn: scenario.mpn,
+    title: scenario.productName,
+    shortDescription: scenario.shortDescription,
+    includedQuestions: scenario.includedQuestions.map((question, index) => ({
+      id: String(question.id) as IncludedQuestionId,
+      label: question.label,
+      displayOrder: index + 1,
+      required: true,
+      shortcutPosition: index < 10 ? index + 1 : undefined,
+      important: question.important,
+    })),
+    conditionRequired: scenario.conditionRequired,
+    conditionalFields: scenario.conditionalFields.map((field, index) => ({
+      id: field.key as ConditionalFieldId,
+      kind: field.key === "qtyToList" ? "qty_to_list" : field.key === "checkCount" ? "check_count" : field.key === "stockTotal" ? "stock_total" : "other_notes",
+      type: field.key === "qtyToList" || field.key === "stockTotal" ? "number" : field.key === "checkCount" ? "boolean" : "text",
+      label: field.label,
+      displayOrder: index + 1,
+      required: field.required,
+      editable: field.key !== "stockTotal",
+      validation: field.key === "qtyToList" ? { kind: "number", integer: true, min: 1 } : undefined,
+      defaultValue: field.defaultValue,
+    })),
+    sourceInventoryFields: {},
+    warnings: scenario.scenarioNote ? [scenario.scenarioNote] : [],
+    workflowStatus: "ready_for_employee",
+    version: 1,
+  };
+}
+
+function createDefaultItemDraft(scenario: ItemScenario): ItemDraft {
+  const now = new Date().toISOString();
+  return {
+    itemId: scenario.id as ListingItemId,
+    itemVersion: 1,
+    includedItems: {
+      selectedQuestionIds: scenario.preSelectedIncluded.map((id) => String(id) as IncludedQuestionId),
+      explicitlyNone: false,
+    },
+    conditionCode: scenario.preSelectedCondition,
     fieldValues: {
       qtyToList: scenario.conditionalFields.find(f => f.key === 'qtyToList')?.defaultValue ?? '1',
       checkCount: scenario.conditionalFields.find(f => f.key === 'checkCount')?.defaultValue ?? 'TRUE',
       stockTotal: scenario.conditionalFields.find(f => f.key === 'stockTotal')?.defaultValue ?? '',
       otherNotes: '',
     },
-    status: 'pending',
+    notes: '',
+    employeeId: 'development-employee' as EmployeeId,
+    status: 'new',
+    createdAt: now,
+    updatedAt: now,
   };
 }
 
@@ -60,10 +100,10 @@ function formatIncludedShortcutLabel(shortcuts: string[]): string {
   return `${shortcuts[0]}–${shortcuts[shortcuts.length - 1]}`;
 }
 
-function findNextPendingIndex(stateMap: Map<number, ItemState>, currentIndex: number): number {
+function findNextPendingIndex(stateMap: Map<number, ItemDraft>, currentIndex: number): number {
   for (let offset = 1; offset <= TOTAL_ITEMS; offset += 1) {
     const index = (currentIndex + offset) % TOTAL_ITEMS;
-    if ((stateMap.get(index)?.status ?? 'pending') === 'pending') {
+    if (!['submitted', 'needs_review'].includes(stateMap.get(index)?.status ?? 'new')) {
       return index;
     }
   }
@@ -71,8 +111,8 @@ function findNextPendingIndex(stateMap: Map<number, ItemState>, currentIndex: nu
 }
 
 export default function EmployeeScreen() {
-  const [itemStates, setItemStates] = useState<Map<number, ItemState>>(() => new Map());
-  const itemStatesRef = useRef<Map<number, ItemState>>(new Map());
+  const [itemStates, setItemStates] = useState<Map<number, ItemDraft>>(() => new Map());
+  const itemStatesRef = useRef<Map<number, ItemDraft>>(new Map());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [batchComplete, setBatchComplete] = useState(false);
   
@@ -85,42 +125,35 @@ export default function EmployeeScreen() {
 
   const scenario = MOCK_SCENARIOS[currentIndex];
 
-  function getItemState(index: number, scenarioData: ItemScenario, stateMap = itemStates): ItemState {
-    return stateMap.get(index) ?? createDefaultItemState(scenarioData);
+  function getItemState(index: number, scenarioData: ItemScenario, stateMap = itemStates): ItemDraft {
+    return stateMap.get(index) ?? createDefaultItemDraft(scenarioData);
   }
 
   const currentState = getItemState(currentIndex, scenario);
-  const selectedIncluded = new Set<number>(currentState.selectedIncluded);
-  const includedDecisionMade = currentState.includedDecisionMade;
-  const selectedCondition = currentState.selectedCondition;
+  const selectedIncluded = new Set(currentState.includedItems.selectedQuestionIds.map(String));
+  const includedDecisionMade = currentState.includedItems.explicitlyNone;
+  const selectedCondition = currentState.conditionCode;
   const fieldValues = currentState.fieldValues;
 
-  function updateCurrentState(patch: Partial<ItemState>) {
+  function updateCurrentState(patch: Partial<ItemDraft>) {
     const next = new Map(itemStatesRef.current);
-    const current = next.get(currentIndex) ?? createDefaultItemState(scenario);
-    next.set(currentIndex, { ...current, ...patch });
+    const current = next.get(currentIndex) ?? createDefaultItemDraft(scenario);
+    next.set(currentIndex, { ...current, ...patch, status: current.status === 'new' ? 'editing' : current.status, updatedAt: new Date().toISOString() });
     itemStatesRef.current = next;
     setItemStates(next);
   }
 
   const totalQuestions = scenario.includedQuestions.length;
-  const isIncludedComplete = totalQuestions === 0 || selectedIncluded.size > 0 || includedDecisionMade;
-  const isConditionComplete = !scenario.conditionRequired || selectedCondition !== null;
-
-  const areRequiredFieldsComplete = scenario.conditionalFields.filter(f => f.required).every(f => {
-    const val = (fieldValues[f.key] ?? '').trim();
-    if (f.key === 'qtyToList') return val !== '' && parseInt(val) > 0;
-    if (f.key === 'checkCount') return true;
-    return val !== '';
-  });
-
-  const isReady = isIncludedComplete && isConditionComplete && areRequiredFieldsComplete;
+  const validation = validateEmployeeAnswer(toListingItem(scenario), currentState);
+  const isIncludedComplete = !validation.fieldErrors.includedItems;
+  const isConditionComplete = !validation.fieldErrors.conditionCode;
+  const isReady = validation.valid;
 
   const missingItems: string[] = [];
   if (totalQuestions > 0 && !isIncludedComplete) missingItems.push('Included items');
   if (!isConditionComplete) missingItems.push('Condition');
   scenario.conditionalFields.filter(f => f.required).forEach(f => {
-    const val = (fieldValues[f.key] ?? '').trim();
+    const val = String(fieldValues[f.key] ?? '').trim();
     const incomplete = f.key === 'qtyToList' ? (val === '' || parseInt(val) <= 0) : val === '';
     if (incomplete && f.key !== 'checkCount') {
       missingItems.push(f.key === 'qtyToList' ? 'Qty To List (must be greater than 0)' : f.label);
@@ -129,28 +162,30 @@ export default function EmployeeScreen() {
 
   const toggleIncluded = (id: number) => {
     const next = new Map(itemStatesRef.current);
-    const current = next.get(currentIndex) ?? createDefaultItemState(scenario);
-    const selected = new Set(current.selectedIncluded);
-    if (selected.has(id)) selected.delete(id); else selected.add(id);
+    const current = next.get(currentIndex) ?? createDefaultItemDraft(scenario);
+    const questionId = String(id) as IncludedQuestionId;
+    const selected = new Set(current.includedItems.selectedQuestionIds);
+    if (selected.has(questionId)) selected.delete(questionId); else selected.add(questionId);
     next.set(currentIndex, {
       ...current,
-      selectedIncluded: Array.from(selected),
-      includedDecisionMade: false,
+      includedItems: { selectedQuestionIds: Array.from(selected), explicitlyNone: false },
+      status: current.status === 'new' ? 'editing' : current.status,
+      updatedAt: new Date().toISOString(),
     });
     itemStatesRef.current = next;
     setItemStates(next);
   };
 
   const handleSetCondition = (c: ConditionValue) => {
-    updateCurrentState({ selectedCondition: c });
+    updateCurrentState({ conditionCode: c });
   };
 
-  const handleFieldChange = (key: keyof ConditionalFieldValues, value: string) => {
+  const handleFieldChange = (key: string, value: string) => {
     updateCurrentState({ fieldValues: { ...fieldValues, [key]: value } });
   };
 
   const handleQtyChange = (delta: number) => {
-    const parsed = parseInt(fieldValues.qtyToList);
+    const parsed = parseInt(String(fieldValues.qtyToList));
     const current = Number.isNaN(parsed) ? 0 : parsed;
     const next = Math.max(0, current + delta);
     handleFieldChange('qtyToList', String(next));
@@ -178,13 +213,13 @@ export default function EmployeeScreen() {
 
     const nextStates = new Map(itemStatesRef.current);
     nextStates.set(currentIndex, {
-      ...(nextStates.get(currentIndex) ?? createDefaultItemState(scenario)),
-      status: 'complete',
+      ...validation.normalizedAnswer,
+      status: 'submitted',
     });
     itemStatesRef.current = nextStates;
     setItemStates(nextStates);
     const batchIsComplete = Array.from(nextStates.values()).filter(
-      state => state.status === 'complete' || state.status === 'needs-review'
+      state => state.status === 'submitted' || state.status === 'needs_review'
     ).length === TOTAL_ITEMS;
     const nextPendingIndex = batchIsComplete
       ? currentIndex
@@ -201,7 +236,7 @@ export default function EmployeeScreen() {
         navigateTo(nextPendingIndex);
       }
     }, 900);
-  }, [isReady, currentIndex, scenario, navigateTo]);
+  }, [isReady, currentIndex, scenario, navigateTo, validation.normalizedAnswer]);
 
   const handleNeedsReview = useCallback(() => {
     if (transitionLockRef.current) return;
@@ -211,13 +246,13 @@ export default function EmployeeScreen() {
 
     const nextStates = new Map(itemStatesRef.current);
     nextStates.set(currentIndex, {
-      ...(nextStates.get(currentIndex) ?? createDefaultItemState(scenario)),
-      status: 'needs-review',
+      ...(nextStates.get(currentIndex) ?? createDefaultItemDraft(scenario)),
+      status: 'needs_review',
     });
     itemStatesRef.current = nextStates;
     setItemStates(nextStates);
     const batchIsComplete = Array.from(nextStates.values()).filter(
-      state => state.status === 'complete' || state.status === 'needs-review'
+      state => state.status === 'submitted' || state.status === 'needs_review'
     ).length === TOTAL_ITEMS;
     const nextPendingIndex = batchIsComplete
       ? currentIndex
@@ -292,8 +327,8 @@ export default function EmployeeScreen() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [scenario, showHelp, showSuccessToast, showReviewToast, batchComplete, handleSaveNext, handleNeedsReview]);
 
-  const completedCount = Array.from(itemStates.values()).filter(s => s.status === 'complete').length;
-  const reviewCount = Array.from(itemStates.values()).filter(s => s.status === 'needs-review').length;
+  const completedCount = Array.from(itemStates.values()).filter(s => s.status === 'submitted').length;
+  const reviewCount = Array.from(itemStates.values()).filter(s => s.status === 'needs_review').length;
   const processedCount = completedCount + reviewCount;
   const pendingCount = TOTAL_ITEMS - processedCount;
 
@@ -305,17 +340,18 @@ export default function EmployeeScreen() {
   const includedShortcuts = getIncludedShortcuts(totalQuestions);
   const fieldSummaries = [
     hasQtyToList && fieldValues.qtyToList
-      ? { label: 'Qty To List', value: fieldValues.qtyToList }
+      ? { label: 'Qty To List', value: String(fieldValues.qtyToList) }
       : null,
     hasCheckCount && fieldValues.checkCount
-      ? { label: 'Check Count', value: fieldValues.checkCount === 'TRUE' ? 'Yes' : 'No' }
+      ? { label: 'Check Count', value: fieldValues.checkCount === 'TRUE' || fieldValues.checkCount === true ? 'Yes' : 'No' }
       : null,
     hasStockTotal
-      ? { label: 'Stock Total', value: fieldValues.stockTotal || '0' }
+      ? { label: 'Stock Total', value: String(fieldValues.stockTotal || '0') }
       : null,
   ].filter((field): field is { label: string; value: string } => field !== null);
   
-  const savedStatus = itemStates.get(currentIndex)?.status;
+  const draftStatus = itemStates.get(currentIndex)?.status;
+  const savedStatus = draftStatus === 'submitted' ? 'complete' : draftStatus === 'needs_review' ? 'needs-review' : undefined;
 
   return (
     <div className="fixed inset-0 bg-gray-50 flex flex-col font-sans overflow-hidden">
@@ -377,7 +413,7 @@ export default function EmployeeScreen() {
               onClick={() => {
                 transitionLockRef.current = false;
                 setIsSubmitting(false);
-                const freshStates = new Map<number, ItemState>();
+                const freshStates = new Map<number, ItemDraft>();
                 itemStatesRef.current = freshStates;
                 setItemStates(freshStates);
                 setCurrentIndex(0);
@@ -416,7 +452,7 @@ export default function EmployeeScreen() {
                         key={item.id}
                         item={item}
                         index={idx}
-                        isSelected={selectedIncluded.has(item.id)}
+                        isSelected={selectedIncluded.has(String(item.id))}
                         onToggle={() => toggleIncluded(item.id)}
                         showError={false}
                       />
@@ -425,7 +461,7 @@ export default function EmployeeScreen() {
                   
                   {totalQuestions > 0 && selectedIncluded.size === 0 && !includedDecisionMade && (
                     <button 
-                      onClick={() => updateCurrentState({ includedDecisionMade: true })}
+                      onClick={() => updateCurrentState({ includedItems: { selectedQuestionIds: [], explicitlyNone: true } })}
                       className="border border-gray-300 text-gray-500 text-xs px-3 py-2 rounded-md hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 w-full mt-3 font-medium transition-colors"
                     >
                       NONE OF THESE ARE INCLUDED
@@ -456,9 +492,9 @@ export default function EmployeeScreen() {
                         QTY TO LIST
                         {scenario.conditionalFields.find(f => f.key === 'qtyToList')?.required && <span className="text-red-500">*</span>}
                       </label>
-                      <div className={`flex border rounded-md overflow-hidden h-[34px] ${validationErrors && scenario.conditionalFields.find(f => f.key === 'qtyToList')?.required && (!fieldValues.qtyToList || parseInt(fieldValues.qtyToList) <= 0) ? 'border-red-400' : 'border-gray-200'}`}>
+                      <div className={`flex border rounded-md overflow-hidden h-[34px] ${validationErrors && scenario.conditionalFields.find(f => f.key === 'qtyToList')?.required && (!fieldValues.qtyToList || parseInt(String(fieldValues.qtyToList)) <= 0) ? 'border-red-400' : 'border-gray-200'}`}>
                         <button type="button" onClick={() => handleQtyChange(-1)} className="w-8 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 flex items-center justify-center text-gray-500 border-r border-gray-200">−</button>
-                        <div className="flex-1 flex items-center justify-center font-medium text-sm bg-white text-gray-900">{fieldValues.qtyToList}</div>
+                        <div className="flex-1 flex items-center justify-center font-medium text-sm bg-white text-gray-900">{String(fieldValues.qtyToList)}</div>
                         <button type="button" onClick={() => handleQtyChange(1)} className="w-8 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 flex items-center justify-center text-gray-500 border-l border-gray-200">+</button>
                       </div>
                     </div>
@@ -469,7 +505,7 @@ export default function EmployeeScreen() {
                       <label className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">CHECK COUNT?</label>
                       <select 
                         className="h-[34px] border border-gray-200 rounded-md text-sm px-2 focus:outline-none focus:ring-1 focus:ring-emerald-600 bg-white cursor-pointer text-gray-900"
-                        value={fieldValues.checkCount}
+                        value={String(fieldValues.checkCount)}
                         onChange={(e) => handleFieldChange('checkCount', e.target.value)}
                       >
                         <option value="TRUE">TRUE</option>
@@ -482,7 +518,7 @@ export default function EmployeeScreen() {
                     <div className="flex flex-col gap-1 w-24 shrink-0">
                       <label className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">STOCK TOTAL</label>
                       <div className="h-[34px] border border-gray-200 rounded-md text-sm px-3 flex items-center justify-center bg-gray-50 text-gray-900 font-medium">
-                        {fieldValues.stockTotal || scenario.conditionalFields.find(f => f.key === 'stockTotal')?.defaultValue || '0'}
+                        {String(fieldValues.stockTotal || scenario.conditionalFields.find(f => f.key === 'stockTotal')?.defaultValue || '0')}
                       </div>
                     </div>
                   )}
@@ -495,7 +531,7 @@ export default function EmployeeScreen() {
                       <textarea 
                         className="w-full px-3 py-1.5 border border-gray-200 rounded-md text-sm min-h-[34px] focus:outline-none focus:ring-1 focus:ring-emerald-600 resize-none bg-white placeholder:text-gray-300 text-gray-900"
                         placeholder="e.g. minor scratches"
-                        value={fieldValues.otherNotes}
+                        value={String(fieldValues.otherNotes ?? '')}
                         onChange={(e) => handleFieldChange('otherNotes', e.target.value)}
                         rows={1}
                       />
