@@ -5,7 +5,7 @@ export default defineConfig({
   timeout: 30_000,
   use: { baseURL: "http://127.0.0.1:4173", trace: "retain-on-failure" },
   webServer: process.env.PHASE2_E2E ? [
-    { command: "pnpm --filter @workspace/api-server dev", url: "http://127.0.0.1:4174/api/readyz", reuseExistingServer: false, env: { PORT:"4174",APP_ENV:"staging",NODE_ENV:"test",PHASE2_E2E:"true",ALLOW_DEVELOPMENT_IDENTITY:"true",ALLOW_NONPRODUCTION_DATABASE:"true",ALLOW_NONPRODUCTION_STORAGE:"true",STAGING_FILE_ROOT:process.env.STAGING_FILE_ROOT??".phase2-files",CORS_ALLOWED_ORIGINS:"http://127.0.0.1:4173" } },
+    { command: "pnpm --filter @workspace/api-server build && pnpm --filter @workspace/api-server start", url: "http://127.0.0.1:4174/api/readyz", reuseExistingServer: false, env: { PORT:"4174",APP_ENV:"staging",NODE_ENV:"test",PHASE2_E2E:"true",ALLOW_DEVELOPMENT_IDENTITY:"true",ALLOW_NONPRODUCTION_DATABASE:"true",ALLOW_NONPRODUCTION_STORAGE:"true",STAGING_FILE_ROOT:process.env.STAGING_FILE_ROOT??".phase2-files",CORS_ALLOWED_ORIGINS:"http://127.0.0.1:4173" } },
     { command: "pnpm dev", url: "http://127.0.0.1:4173/employee", reuseExistingServer: false, env: { PORT:"4173",BASE_PATH:"/",VITE_API_BASE_URL:"http://127.0.0.1:4174/api" } },
   ] : { command: "pnpm dev", url: "http://127.0.0.1:4173/employee", reuseExistingServer: false, env: { PORT: "4173", BASE_PATH: "/" } },
   projects: [
