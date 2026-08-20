@@ -37,7 +37,7 @@ app.use(
     },
   }),
 );
-app.use(cors({ origin(origin, callback) { callback(null, !origin || allowedOrigins.includes(origin)); }, credentials: true, methods: ["GET", "POST", "PUT", "OPTIONS"], allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "X-Request-Id", "X-Development-User", "X-Test-Drop-Response-After-Commit", "X-Test-Fail-Progress", "X-Test-Fail-Draft", "X-Test-Delay-Draft"] }));
+app.use(cors({ origin(origin, callback) { callback(null, !origin || allowedOrigins.includes(origin)); }, credentials: true, methods: ["GET", "POST", "PUT", "OPTIONS"], allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "X-Request-Id", "X-Development-User", "X-Test-Drop-Response-After-Commit", "X-Test-Fail-Before-Commit", "X-Test-Fail-Progress", "X-Test-Fail-Draft", "X-Test-Delay-Draft"] }));
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT ?? "256kb", type: "application/json" }));
 app.use(express.urlencoded({ extended: false, limit: "64kb" }));
 
