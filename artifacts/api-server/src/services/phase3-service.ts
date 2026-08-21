@@ -425,7 +425,11 @@ export class Phase3Service {
             "VALIDATION_ERROR",
             `Unknown Phase 3 question: ${answerId}.`,
           );
-        if (question.type !== typeof value && question.type !== "select")
+        const expectedType =
+          question.type === "text" || question.type === "select"
+            ? "string"
+            : question.type;
+        if (expectedType !== typeof value)
           throw new ApiFault(
             400,
             "VALIDATION_ERROR",
