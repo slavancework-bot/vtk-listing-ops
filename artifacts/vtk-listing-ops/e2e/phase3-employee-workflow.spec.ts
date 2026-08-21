@@ -12,9 +12,14 @@ test("generated Phase 3 question is answered through the Employee Work Screen an
 }, testInfo) => {
   const headers = { "x-development-user": "development-employee" };
   const api = "http://127.0.0.1:4174/api";
-  const content = await readFile(
-    new URL("../../../fixtures/phase3-sixbit-v1.csv", import.meta.url),
-    "utf8",
+  const content = (
+    await readFile(
+      new URL("../../../fixtures/phase3-sixbit-v1.csv", import.meta.url),
+      "utf8",
+    )
+  ).replace(
+    "NEW Zebra ZT410 Industrial Thermal Label Printer 203dpi USB Ethernet with Cable",
+    "NEW Synthetic Reviewer Title",
   );
   const imported = await request.post(`${api}/phase3/batches/import`, {
     headers,
