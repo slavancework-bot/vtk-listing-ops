@@ -1123,6 +1123,7 @@ test("real Phase 3 PostgreSQL path preserves originals through analysis, evidenc
       "q:qty.override.code": "MANAGER_APPROVAL",
       "q:qty.override.reason": "Synthetic manager approval",
       "q:qty.override.source": "manager-42",
+      "q:check-count": true,
     },
     "00000000-0000-4000-8000-000000000073",
   );
