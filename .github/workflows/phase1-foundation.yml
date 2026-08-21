@@ -1,8 +1,8 @@
-name: Phase 2 Controlled Nonproduction Integration
+name: Phase 3 Deterministic Listing Workflow
 on:
   pull_request:
   push:
-    branches: [agent/phase-2-controlled-nonproduction-integration]
+    branches: [agent/phase-2-controlled-nonproduction-integration, agent/phase-3-listing-engine-sixbit-workflow]
 jobs:
   verify:
     runs-on: ubuntu-latest

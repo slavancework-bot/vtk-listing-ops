@@ -1,7 +1,7 @@
 openapi: 3.1.0
-info: { title: VTK Listing Ops API, version: 0.2.0, description: Executable controlled nonproduction integration API }
+info: { title: VTK Listing Ops API, version: 0.3.0, description: Executable deterministic SixBit CSV listing workflow API }
 servers: [{ url: /api }]
-tags: [{ name: health }, { name: batches }, { name: employee }]
+tags: [{ name: health }, { name: batches }, { name: employee }, { name: phase3 }]
 paths:
   /healthz:
     get:
@@ -96,6 +96,58 @@ paths:
         "422": { $ref: "#/components/responses/ApiError" }
         "429": { $ref: "#/components/responses/ApiError" }
         "500": { $ref: "#/components/responses/ApiError" }
+  /phase3/batches/import:
+    post:
+      operationId: importPhase3Batch
+      tags: [phase3]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ImportBatchRequest" } } }
+      responses:
+        "201": { description: Versioned SixBit CSV imported, content: { application/json: { schema: { $ref: "#/components/schemas/Phase3ImportResult" } } } }
+        "422": { $ref: "#/components/responses/ApiError" }
+  /phase3/batches/{batchId}/analyze:
+    post:
+      operationId: analyzePhase3Batch
+      tags: [phase3]
+      parameters: [{ $ref: "#/components/parameters/BatchId" }]
+      responses:
+        "200": { description: Deterministic analysis summary, content: { application/json: { schema: { $ref: "#/components/schemas/Phase3AnalysisSummary" } } } }
+  /phase3/items/{itemId}/results:
+    get:
+      operationId: getPhase3Results
+      tags: [phase3]
+      parameters: [{ $ref: "#/components/parameters/ItemId" }]
+      responses:
+        "200": { description: "Versioned rule results, repairs, questions, answers, and reviewer state", content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+  /phase3/items/{itemId}/answers:
+    put:
+      operationId: answerPhase3Questions
+      tags: [phase3]
+      parameters: [{ $ref: "#/components/parameters/ItemId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/Phase3AnswersRequest" } } }
+      responses:
+        "200": { description: Answers persisted and rules rerun, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+  /phase3/items/{itemId}/review:
+    put:
+      operationId: reviewPhase3Item
+      tags: [phase3]
+      parameters: [{ $ref: "#/components/parameters/ItemId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/Phase3ReviewRequest" } } }
+      responses:
+        "200": { description: Idempotent reviewer decision, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+  /phase3/batches/{batchId}/export:
+    post:
+      operationId: exportPhase3Batch
+      tags: [phase3]
+      parameters: [{ $ref: "#/components/parameters/BatchId" }]
+      responses:
+        "200": { description: Controlled SixBit-compatible CSV with checksum and field diffs, content: { application/json: { schema: { $ref: "#/components/schemas/Phase3Export" } } } }
+        "409": { $ref: "#/components/responses/ApiError" }
 components:
   securitySchemes:
     bearerAuth:
@@ -109,6 +161,11 @@ components:
   responses:
     ApiError: { description: Structured API error, content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
   schemas:
+    Phase3ImportResult: { type: object, required: [batchId, replayed, itemCount, checksum, schemaVersion], properties: { batchId: { type: string, format: uuid }, replayed: { type: boolean }, itemCount: { type: integer, minimum: 1 }, checksum: { type: string }, schemaVersion: { type: string } } }
+    Phase3AnalysisSummary: { type: object, required: [batchId, ruleVersion, total, pass, verify, exportReady], properties: { batchId: { type: string, format: uuid }, ruleVersion: { type: string }, total: { type: integer }, pass: { type: integer }, verify: { type: integer }, exportReady: { type: integer } } }
+    Phase3Export: { type: object, additionalProperties: false, required: [exportId, checksum, rowCount, schemaVersion, ruleVersion, content, fieldDiffs], properties: { exportId: { type: string, format: uuid }, checksum: { type: string }, rowCount: { type: integer }, schemaVersion: { type: string }, ruleVersion: { type: string }, content: { type: string }, fieldDiffs: { type: array, items: { type: object, additionalProperties: true } } } }
+    Phase3AnswersRequest: { type: object, additionalProperties: false, required: [answers], properties: { answers: { type: object, additionalProperties: true } } }
+    Phase3ReviewRequest: { type: object, additionalProperties: false, required: [status, reason], properties: { status: { type: string, enum: [approved, unresolved] }, reason: { type: string, minLength: 1, maxLength: 2000 } } }
     HealthStatus: { type: object, required: [status], properties: { status: { type: string } } }
     ImportBatchRequest: { type: object, additionalProperties: false, required: [importKey, filename, mimeType, content], properties: { importKey: { type: string, minLength: 1, maxLength: 200 }, filename: { type: string, minLength: 1, maxLength: 255 }, mimeType: { type: string, minLength: 1, maxLength: 100 }, content: { type: string, minLength: 1 }, name: { type: string, minLength: 1, maxLength: 200 } } }
     ImportBatchResult: { type: object, required: [batchId, replayed, itemCount, checksum], properties: { batchId: { type: string, format: uuid }, replayed: { type: boolean }, itemCount: { type: integer, minimum: 1 }, checksum: { type: string, pattern: "^[a-f0-9]{64}$" } } }

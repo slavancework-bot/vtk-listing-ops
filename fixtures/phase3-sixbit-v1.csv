@@ -1,0 +1,5 @@
+SourceDatabase,ItemID,InventoryID,SKU,Title,eBay Description,StorageLocation,QtyToList,QtyUncommitted,QtyCurrentlyListed,QtySold,StockTotal,FixedPrice,ItemStatus,ItemStatusID,Condition,R2Code,Check Count,CF Check,UnknownPassThrough
+VTK,1001,INV-1001,ZEBRA-1,NEW Zebra ZT410 Industrial Thermal Label Printer 203dpi USB Ethernet with Cable,Verified Zebra printer.,A-01,1,2,0,0,2,200.00,Ready,1,A,R2-A,TRUE,OK,keep-one
+VTK,1002,INV-1002,LOT-12,NEW 12 LOT Industrial Network Adapter Modules Model ZX9000 and Mounting Rails,All included facts verified.,A-02,1,1,0,0,1,120.00,Ready,1,A,R2-B,FALSE,OK,keep-two
+VTK,1003,INV-1003,R2-MISSING,NEW Industrial Control Module Model F3 2026 Assembly w/ Verified Connector Set,Verified included connector set.,A-03,1,1,0,0,1,75.00,Ready,1,A,,FALSE,REVIEW,keep-three
+VTK,1004,INV-1004,QTY-OVERRIDE,NEW Network Storage Controller Model QX5000 12Gb SAS w/ Verified Mounting Tray,Verified mounting tray.,A-04,3,2,1,0,2,300.00,Active,2,B,R2-C,FALSE,OK,"=preserve-literal"

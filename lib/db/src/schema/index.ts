@@ -59,5 +59,24 @@ export const idempotencyRecords = pgTable("idempotency_records", {
   responseBody: jsonb("response_body").$type<Record<string, unknown>>().notNull(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 }, (table) => [uniqueIndex("idempotency_actor_operation_key_uq").on(table.actorId, table.operation, table.key), check("idempotency_expiry_after_creation", sql`${table.expiresAt} > ${table.createdAt}`), check("idempotency_response_status_valid", sql`${table.responseStatus} between 100 and 599`)]);
 
+export const listingAnalyses = pgTable("listing_analyses", {
+  id: uuid("id").primaryKey().defaultRandom(), itemId: uuid("item_id").notNull().references(() => listingItems.id), ruleVersion: text("rule_version").notNull(),
+  normalizedValues: jsonb("normalized_values").$type<Record<string, unknown>>().notNull(), results: jsonb("results").$type<Record<string, unknown>[]>().notNull(),
+  repairs: jsonb("repairs").$type<Record<string, unknown>[]>().notNull(), employeeAnswers: jsonb("employee_answers").$type<Record<string, unknown>>().notNull().default({}),
+  reviewerDecision: jsonb("reviewer_decision").$type<Record<string, unknown>>(), exportReady: boolean("export_ready").notNull().default(false),
+  version: integer("version").notNull().default(1), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [uniqueIndex("listing_analyses_item_rule_uq").on(table.itemId, table.ruleVersion), check("listing_analyses_version_positive", sql`${table.version} > 0`)]);
+
+export const listingQuestions = pgTable("listing_questions", {
+  id: text("id").notNull(), itemId: uuid("item_id").notNull().references(() => listingItems.id), ruleId: text("rule_id").notNull(), configuration: jsonb("configuration").$type<Record<string, unknown>>().notNull(),
+  answer: jsonb("answer").$type<Record<string, unknown>>(), answeredBy: text("answered_by"), answeredAt: timestamp("answered_at", { withTimezone: true }), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [uniqueIndex("listing_questions_item_id_uq").on(table.itemId, table.id), index("listing_questions_item_idx").on(table.itemId)]);
+
+export const listingExports = pgTable("listing_exports", {
+  id: uuid("id").primaryKey().defaultRandom(), batchId: uuid("batch_id").notNull().references(() => batches.id), ruleVersion: text("rule_version").notNull(), schemaVersion: text("schema_version").notNull(),
+  checksum: text("checksum").notNull(), rowCount: integer("row_count").notNull(), content: text("content").notNull(), fieldDiffs: jsonb("field_diffs").$type<Record<string, unknown>[]>().notNull(),
+  generatedBy: text("generated_by").notNull(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [uniqueIndex("listing_exports_batch_checksum_uq").on(table.batchId, table.checksum), check("listing_exports_row_count_nonnegative", sql`${table.rowCount} >= 0`)]);
+
 export type BatchRow = typeof batches.$inferSelect;
 export type ListingItemRow = typeof listingItems.$inferSelect;

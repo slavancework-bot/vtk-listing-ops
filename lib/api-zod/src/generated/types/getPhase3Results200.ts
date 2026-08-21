@@ -6,4 +6,4 @@
  * OpenAPI spec version: 0.3.0
  */
 
-export type ItemDraftFieldValues = {[key: string]: string | number | boolean | null};
+export type GetPhase3Results200 = { [key: string]: unknown };

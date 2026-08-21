@@ -48,8 +48,8 @@ async function expectFault(response: Response, status: number, code: string) { a
 
 test("OpenAPI executable operations exactly match the mounted callable surface", async () => {
   const spec = await readFile(new URL("../../../../lib/api-spec/openapi.yaml", import.meta.url), "utf8");
-  assert.deepEqual([...spec.matchAll(/^  (\/[^:]+):$/gm)].map((match) => match[1]), ["/healthz","/readyz","/batches/import","/batches","/batches/{batchId}","/batches/{batchId}/progress","/batches/{batchId}/items","/batches/{batchId}/next-item","/items/{itemId}","/items/{itemId}/draft","/items/{itemId}/answer","/items/{itemId}/needs-review"]);
-  for(const operation of ["healthCheck","readinessCheck","importBatch","listBatches","getBatch","getBatchProgress","listBatchItems","getNextPendingItem","getItem","saveItemDraft","saveItemAnswer","markItemNeedsReview"])assert.match(spec,new RegExp(`operationId: ${operation}`));
+  assert.deepEqual([...spec.matchAll(/^  (\/[^:]+):$/gm)].map((match) => match[1]), ["/healthz","/readyz","/batches/import","/batches","/batches/{batchId}","/batches/{batchId}/progress","/batches/{batchId}/items","/batches/{batchId}/next-item","/items/{itemId}","/items/{itemId}/draft","/items/{itemId}/answer","/items/{itemId}/needs-review","/phase3/batches/import","/phase3/batches/{batchId}/analyze","/phase3/items/{itemId}/results","/phase3/items/{itemId}/answers","/phase3/items/{itemId}/review","/phase3/batches/{batchId}/export"]);
+  for(const operation of ["healthCheck","readinessCheck","importBatch","listBatches","getBatch","getBatchProgress","listBatchItems","getNextPendingItem","getItem","saveItemDraft","saveItemAnswer","markItemNeedsReview","importPhase3Batch","analyzePhase3Batch","getPhase3Results","answerPhase3Questions","reviewPhase3Item","exportPhase3Batch"])assert.match(spec,new RegExp(`operationId: ${operation}`));
   assert.equal((await fetch(`${baseUrl}/healthz`)).status, 200);
 });
 

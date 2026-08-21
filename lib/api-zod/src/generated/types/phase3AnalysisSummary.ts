@@ -6,4 +6,11 @@
  * OpenAPI spec version: 0.3.0
  */
 
-export type ItemDraftFieldValues = {[key: string]: string | number | boolean | null};
+export interface Phase3AnalysisSummary {
+  batchId: string;
+  ruleVersion: string;
+  total: number;
+  pass: number;
+  verify: number;
+  exportReady: number;
+}
