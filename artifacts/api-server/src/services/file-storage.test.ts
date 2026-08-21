@@ -69,7 +69,7 @@ test("initial ancestor replacement is detected with zero external effects", linu
   try {
     await mkdir(root, { recursive: true }); await mkdir(outside); await writeFile(marker, "external"); parent = await open(sandbox, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
     const storage = new NonproductionFilesystemStorage(root, { beforeInitialRootTrust: async () => { await rename(ancestor, moved); await symlink(outside, ancestor, "dir"); assert.equal((await lstat(ancestor)).isSymbolicLink(), true); replaced = true; } }, { fd: parent.fd, path: sandbox });
-    const rejection=await assert.rejects(() => storage.store(Buffer.from("secret")), /symbolic links|ELOOP/i); assert.equal(replaced, true); assert.match(String(rejection),/symbolic links|ELOOP/i); assert.equal((await lstat(ancestor)).isSymbolicLink(),true); assert.deepEqual(await readdir(outside), ["marker.txt"]); assert.deepEqual(await readdir(join(moved, "root")), []); assert.equal(await readFile(marker, "utf8"), "external");
+    await assert.rejects(() => storage.store(Buffer.from("secret")), (error: unknown) => { assert.match(String(error), /symbolic links|ELOOP/i); return true; }); assert.equal(replaced, true); assert.equal((await lstat(ancestor)).isSymbolicLink(),true); assert.deepEqual(await readdir(outside), ["marker.txt"]); assert.deepEqual(await readdir(join(moved, "root")), []); assert.equal(await readFile(marker, "utf8"), "external");
   } finally { await parent?.close(); restore(); await rm(sandbox, { recursive: true, force: true }); }
 });
 
@@ -80,7 +80,7 @@ test("repeated initial-root replacement stress never trusts or writes to externa
     for (let index = 0; index < 20; index += 1) {
       const root = join(sandbox, `root-${index}`); const moved = join(sandbox, `moved-${index}`); const outside = join(sandbox, `outside-${index}`); await mkdir(outside); await writeFile(join(outside, "marker.txt"), "external");
       let replacementComplete=false; const storage = new NonproductionFilesystemStorage(root, { beforeInitialRootTrust: async () => { await rename(root, moved); await symlink(outside, root, "dir"); assert.equal((await lstat(root)).isSymbolicLink(),true); replacementComplete=true; } }, { fd: parent.fd, path: sandbox });
-      const rejection=await assert.rejects(() => storage.store(Buffer.from(`secret-${index}`)), /symbolic links|ELOOP/i); assert.equal(replacementComplete,true); assert.match(String(rejection),/symbolic links|ELOOP/i); assert.equal((await lstat(root)).isSymbolicLink(),true); assert.deepEqual(await readdir(outside), ["marker.txt"]); assert.deepEqual(await readdir(moved), []);
+      await assert.rejects(() => storage.store(Buffer.from(`secret-${index}`)), (error: unknown) => { assert.match(String(error), /symbolic links|ELOOP/i); return true; }); assert.equal(replacementComplete,true); assert.equal((await lstat(root)).isSymbolicLink(),true); assert.deepEqual(await readdir(outside), ["marker.txt"]); assert.deepEqual(await readdir(moved), []);
     }
     const after = (await readdir("/proc/self/fd")).length; assert.ok(after <= before + 2, `race descriptor count grew from ${before} to ${after}`);
   } finally { await parent?.close(); restore(); await rm(sandbox, { recursive: true, force: true }); }
