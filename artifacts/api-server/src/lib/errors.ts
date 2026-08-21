@@ -10,7 +10,8 @@ export function notFound(req: Request, _res: Response, next: NextFunction) {
 }
 
 export function errorHandler(error: unknown, req: Request, res: Response, _next: NextFunction) {
-  const fault = error instanceof ApiFault ? error : new ApiFault(500, "SYSTEM_ERROR", "An unexpected system error occurred.");
+  const candidate=error as {type?:string};
+  const fault = error instanceof ApiFault ? error : candidate?.type==="entity.too.large" ? new ApiFault(413,"UPLOAD_TOO_LARGE","The request body exceeds the configured limit.") : new ApiFault(500, "SYSTEM_ERROR", "An unexpected system error occurred.");
   if (fault.status >= 500) logger.error({ err: error, correlationId: req.correlationId }, "Request failed");
   res.status(fault.status).json({ code: fault.code, message: fault.message, correlationId: req.correlationId, ...fault.details });
 }

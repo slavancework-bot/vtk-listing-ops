@@ -1,8 +1,8 @@
-name: Phase 1 Foundation
+name: Phase 2 Controlled Nonproduction Integration
 on:
   pull_request:
   push:
-    branches: [agent/phase-1-production-foundation]
+    branches: [agent/phase-2-controlled-nonproduction-integration]
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -20,6 +20,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://vtk_test:vtk_test@127.0.0.1:5432/vtk_phase1_test
       NODE_ENV: test
+      APP_ENV: development
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -31,3 +32,27 @@ jobs:
       - run: pnpm run build
       - run: pnpm test
       - run: pnpm --filter @workspace/api-server test:postgres
+      - run: pnpm --filter @workspace/api-server migrate
+      - run: pnpm --filter @workspace/vtk-listing-ops exec playwright install --with-deps chromium
+      - name: Run descriptor-anchored browser tests
+        shell: bash
+        run: |
+          trusted_parent="${{ runner.temp }}/vtk-phase2-storage-parent"
+          mkdir -p "$trusted_parent"
+          chmod 700 "$trusted_parent"
+          export STAGING_TRUSTED_PARENT_PATH="$trusted_parent"
+          export STAGING_FILE_ROOT="$trusted_parent/files"
+          pnpm --filter @workspace/vtk-listing-ops test:browser
+        env:
+          PHASE2_E2E: "true"
+          APP_ENV: staging
+          ALLOW_DEVELOPMENT_IDENTITY: "true"
+          ALLOW_NONPRODUCTION_STORAGE: "true"
+      - run: pnpm audit --audit-level high
+      - name: Tracked-source secret-pattern fallback
+        shell: bash
+        run: |
+          if git grep -nEI '(AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{32,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----)' -- ':!pnpm-lock.yaml'; then
+            echo 'Potential secret pattern found in tracked source.' >&2
+            exit 1
+          fi

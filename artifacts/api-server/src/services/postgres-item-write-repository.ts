@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { db, auditEvents, idempotencyRecords, itemDrafts, listingItems, reviewRecords } from "@workspace/db";
+import { db, auditEvents, batches, idempotencyRecords, itemDrafts, listingItems, reviewRecords } from "@workspace/db";
 import { parsePersistedListingJson, parsePersistedQuestionConfiguration, type BatchId, type ItemDraft, type ListingItem, type ListingItemId, type ReviewReason } from "@workspace/domain";
 import { SaveItemAnswerResponse, type ItemWriteResponse } from "@workspace/api-zod";
 import { ApiFault } from "../lib/errors";
@@ -43,6 +43,7 @@ export class PostgresItemWriteRepository implements ItemWriteRepository {
 
   private createTransaction(transaction: DbTransaction): ItemWriteTransaction {
     let lockedItem: ListingItem | null = null;
+    let completedBatchId: string | null = null;
     return {
       getItemForUpdate: async (itemId) => {
         const rows = await transaction.select().from(listingItems).where(eq(listingItems.id, itemId)).for("update").limit(1);
@@ -56,6 +57,9 @@ export class PostgresItemWriteRepository implements ItemWriteRepository {
         if (updated.length !== 1) throw new ApiFault(409, "CONFLICT", "The listing item changed before it could be saved.", { currentVersion: lockedItem.version });
         const answer = draft as unknown as Record<string, unknown>;
         await transaction.insert(itemDrafts).values({ itemId: draft.itemId, employeeId: draft.employeeId, itemVersion: nextVersion, draftStatus: status === "completed" ? "submitted" : "needs_review", answer }).onConflictDoUpdate({ target: [itemDrafts.itemId, itemDrafts.employeeId], set: { itemVersion: nextVersion, draftStatus: status === "completed" ? "submitted" : "needs_review", answer, version: sql`${itemDrafts.version} + 1`, updatedAt: new Date() } });
+        await transaction.select({id:batches.id}).from(batches).where(eq(batches.id,lockedItem.batchId)).for("update").limit(1);
+        const remaining=await transaction.select({count:sql<number>`count(*)::int`}).from(listingItems).where(and(eq(listingItems.batchId,lockedItem.batchId),inArray(listingItems.status,["pending","ready_for_employee","in_progress"])));
+        if((remaining[0]?.count??0)===0){const changed=await transaction.update(batches).set({status:"completed",updatedAt:new Date(),version:sql`${batches.version}+1`}).where(and(eq(batches.id,lockedItem.batchId),sql`${batches.status} <> 'completed'`)).returning({id:batches.id});completedBatchId=changed[0]?.id??null;}
         return nextVersion;
       },
       saveReview: async (draft: ItemDraft, reason: ReviewReason) => {
@@ -64,6 +68,7 @@ export class PostgresItemWriteRepository implements ItemWriteRepository {
       },
       appendAudit: async (event: AuditEventInput) => {
         await transaction.insert(auditEvents).values({ itemId: event.itemId, batchId: lockedItem?.batchId, actorId: event.actorId, actorRole: "employee", action: event.action, previousStatus: event.previousStatus as ListingItem["workflowStatus"], newStatus: event.newStatus as ListingItem["workflowStatus"], correlationId: event.correlationId, metadata: {} });
+        if(completedBatchId)await transaction.insert(auditEvents).values({batchId:completedBatchId,actorId:event.actorId,actorRole:"employee",action:"batch_completed",previousStatus:"ready_for_employee",newStatus:"completed",correlationId:event.correlationId,metadata:{triggerItemId:event.itemId}});
       },
       nextPendingItemId: async (batchId) => {
         const rows = await transaction.select({ id: listingItems.id }).from(listingItems).where(and(eq(listingItems.batchId, batchId), inArray(listingItems.status, ["pending", "ready_for_employee", "in_progress"]))).orderBy(asc(listingItems.sourceRowNumber), asc(listingItems.createdAt), asc(listingItems.id)).limit(1);
