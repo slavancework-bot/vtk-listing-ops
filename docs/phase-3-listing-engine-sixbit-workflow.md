@@ -38,14 +38,14 @@ Rule-version changes create an explicit new analysis identity; they do not silen
 | Quantity/check count    | `QUANTITY.*`                                                               | domain goldens                  | 0/1 difference and explicit override             | PASS                   |
 | StockTotal              | preservation rule/export                                                   | domain + PostgreSQL E2E         | byte-semantic original retained                  | PASS                   |
 | LOT/KIT                 | explicit-token parser                                                      | domain goldens                  | LOT parsed; model 12D ignored                    | PASS                   |
-| Questions               | stable `q:*` IDs                                                           | domain + PostgreSQL E2E         | only required unanswered questions               | PASS                   |
+| Questions               | stable `q:*` IDs + Phase 3 Employee Work Screen                            | domain + PostgreSQL browser E2E | generated question answered and rules revalidated | PASS                   |
 | Auto-repair             | versioned repair records                                                   | domain goldens                  | before/after/reason/version                      | PASS                   |
 | Preserve row            | export row-count gate                                                      | domain + PostgreSQL E2E         | unresolved retained; no deletion                 | PASS                   |
 | Reviewer                | `listing_analyses.reviewer_decision`                                       | PostgreSQL E2E                  | decision and replay persisted                    | PASS                   |
 | Export/round trip       | `exportSixBitCsv`                                                          | domain + PostgreSQL E2E         | escaping, formula safety, unknown fields         | PASS                   |
 | Security                | middleware + parser limits                                                 | route/domain/Phase 2 regression | access and malformed inputs fail closed          | PASS                   |
 | Idempotency             | import keys, rule identity, answer records, decision keys, export checksum | PostgreSQL E2E                  | replay without duplicate effects                 | PASS                   |
-| Real path               | API service + PostgreSQL migration                                         | `test:postgres`                 | import through provenance/export                 | PASS in CI environment |
+| Real path               | API + PostgreSQL + Phase 3 Employee Work Screen                            | `test:postgres` + Playwright    | import through UI evidence/revalidation/export    | PASS in CI environment |
 | Phase 2 regression      | unchanged suites plus strengthened filesystem tests                        | workspace/CI suites             | existing behavior remains green                  | PASS                   |
 
 ## Performance
