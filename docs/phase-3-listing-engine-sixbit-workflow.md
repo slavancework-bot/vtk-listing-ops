@@ -5,7 +5,7 @@ Phase 3 is a controlled nonproduction workflow. It does not connect to a live Si
 ## Versions and boundaries
 
 - CSV adapter: `sixbit-listing-v1`
-- deterministic rules: `listing-rules-v1`
+- deterministic rules: `listing-rules-v2`
 - accepted input: bounded UTF-8 CSV through `/api/phase3/batches/import`
 - production filesystem storage remains forbidden; staging retains the Phase 2 descriptor-anchored storage contract
 - React and generated clients consume normalized API objects and never parse raw SixBit layout
@@ -16,9 +16,20 @@ The adapter maps explicit aliases to canonical columns, rejects ambiguous duplic
 
 Import → analyze → apply safe repairs → ask only unresolved deterministic questions → persist employee evidence → rerun the same rule version → retain unresolved rows → persist an idempotent reviewer decision → require every row to be resolved → export a new CSV → reparse and validate it.
 
-Rules return rule ID/version, category, outcome (`PASS`, `FAIL`, `VERIFY`, or `PASS_EMPLOYEE_VERIFIED`), severity, field/value, reason, optional safe repair, and employee/reviewer requirements. Repairs are limited to no-invention spacing/approved abbreviation normalization and the required Zebra labels/media disclosure. Missing R2 values are never guessed. Quantity overrides require explicit evidence. `StockTotal` is never mutated to satisfy another rule. LOT/KIT parsing requires explicit tokens and ignores model-like numbers.
+Rules return rule ID/version, category, outcome (`PASS`, `FAIL`, `VERIFY`, or `PASS_EMPLOYEE_VERIFIED`), resolution class (employee, reviewer, or non-overridable hard invalid), severity, field/value, reason, optional safe repair, and employee/reviewer requirements. Repairs are limited to no-invention spacing/approved abbreviation normalization and the required Zebra labels/media disclosure. Missing or invalid R2 values are never guessed and always create an employee question. Quantity overrides require a matching authorized quantity, approved evidence code, bounded reason, and evidence source. `StockTotal` is never mutated to satisfy another rule. LOT/KIT parsing requires an explicit whole-number token from 1 through 1000 and ignores model-like numbers.
 
-Exports use the original header order, preserve pass-through columns and row count, correctly quote commas/quotes/newlines, neutralize leading spreadsheet formula characters, avoid numeric coercion, never overwrite the source, and persist checksum/version/provenance. Production operators must validate the controlled CSV before any separate manual SixBit import.
+Quantity truth table:
+
+| Listing state                     | Evidence                                         | Required Check Count | Failure behavior                         |
+| --------------------------------- | ------------------------------------------------ | -------------------- | ---------------------------------------- |
+| Unlisted (`QtyCurrentlyListed=0`) | `QtyUncommitted-QtyToList=0`                     | `FALSE`              | mismatched value is employee-resolvable  |
+| Unlisted (`QtyCurrentlyListed=0`) | difference `=1`                                  | `TRUE`               | mismatched value is employee-resolvable  |
+| Unlisted (`QtyCurrentlyListed=0`) | any other difference                             | none                 | hard invalid; cannot be reviewed through |
+| Listed (`QtyCurrentlyListed>0`)   | unchanged listed quantity and no sold quantity   | `FALSE`              | mismatched value is employee-resolvable  |
+| Listed (`QtyCurrentlyListed>0`)   | changed listed quantity or sold quantity present | `TRUE`               | mismatched value is employee-resolvable  |
+| Listed                            | unsupported or ambiguous `ItemStatus`            | none                 | hard invalid; cannot be reviewed through |
+
+Exports use the original header order, preserve raw pass-through values and row count, correctly quote commas/quotes/newlines, avoid numeric coercion, never overwrite the source, and persist checksum/version/provenance. Formula-like raw values are intentionally preserved because this is a SixBit interchange artifact rather than a spreadsheet-view safety transform. Mutations are fail-closed to Title, eBay Description, R2Code, and Check Count. Production operators must validate the controlled CSV before any separate manual SixBit import.
 
 ## Security and operational limits
 
@@ -28,25 +39,25 @@ Rule-version changes create an explicit new analysis identity; they do not silen
 
 ## Acceptance matrix
 
-| Requirement             | Implementation                                                             | Exact test / real path          | Assertion                                        | Result                 |
-| ----------------------- | -------------------------------------------------------------------------- | ------------------------------- | ------------------------------------------------ | ---------------------- |
-| CSV mapping and aliases | `phase3.ts` adapter                                                        | `phase3.test.ts`                | canonical mapping; ambiguous aliases rejected    | PASS                   |
-| Immutable original      | `listing_items.original_values`                                            | Phase 3 PostgreSQL E2E          | before/after JSON equality                       | PASS                   |
-| Title                   | `TITLE.*` rules                                                            | domain goldens                  | whole-word bans, 74–80 target, identity retained | PASS                   |
-| Description             | `DESCRIPTION.ZEBRA_MEDIA`                                                  | domain goldens                  | deterministic disclosure only                    | PASS                   |
-| R2                      | `R2.REQUIRED`                                                              | domain + PostgreSQL E2E         | missing code asks; evidence reruns               | PASS                   |
-| Quantity/check count    | `QUANTITY.*`                                                               | domain goldens                  | 0/1 difference and explicit override             | PASS                   |
-| StockTotal              | preservation rule/export                                                   | domain + PostgreSQL E2E         | byte-semantic original retained                  | PASS                   |
-| LOT/KIT                 | explicit-token parser                                                      | domain goldens                  | LOT parsed; model 12D ignored                    | PASS                   |
+| Requirement             | Implementation                                                             | Exact test / real path          | Assertion                                         | Result                 |
+| ----------------------- | -------------------------------------------------------------------------- | ------------------------------- | ------------------------------------------------- | ---------------------- |
+| CSV mapping and aliases | `phase3.ts` adapter                                                        | `phase3.test.ts`                | canonical mapping; ambiguous aliases rejected     | PASS                   |
+| Immutable original      | `listing_items.original_values`                                            | Phase 3 PostgreSQL E2E          | before/after JSON equality                        | PASS                   |
+| Title                   | `TITLE.*` rules                                                            | domain goldens                  | whole-word bans, 74–80 target, identity retained  | PASS                   |
+| Description             | `DESCRIPTION.ZEBRA_MEDIA`                                                  | domain goldens                  | deterministic disclosure only                     | PASS                   |
+| R2                      | `R2.REQUIRED`                                                              | domain + PostgreSQL E2E         | missing code asks; evidence reruns                | PASS                   |
+| Quantity/check count    | `QUANTITY.*`                                                               | domain goldens                  | 0/1 difference and explicit override              | PASS                   |
+| StockTotal              | preservation rule/export                                                   | domain + PostgreSQL E2E         | byte-semantic original retained                   | PASS                   |
+| LOT/KIT                 | explicit-token parser                                                      | domain goldens                  | LOT parsed; model 12D ignored                     | PASS                   |
 | Questions               | stable `q:*` IDs + Phase 3 Employee Work Screen                            | domain + PostgreSQL browser E2E | generated question answered and rules revalidated | PASS                   |
-| Auto-repair             | versioned repair records                                                   | domain goldens                  | before/after/reason/version                      | PASS                   |
-| Preserve row            | export row-count gate                                                      | domain + PostgreSQL E2E         | unresolved retained; no deletion                 | PASS                   |
-| Reviewer                | `listing_analyses.reviewer_decision`                                       | PostgreSQL E2E                  | decision and replay persisted                    | PASS                   |
-| Export/round trip       | `exportSixBitCsv`                                                          | domain + PostgreSQL E2E         | escaping, formula safety, unknown fields         | PASS                   |
-| Security                | middleware + parser limits                                                 | route/domain/Phase 2 regression | access and malformed inputs fail closed          | PASS                   |
-| Idempotency             | import keys, rule identity, answer records, decision keys, export checksum | PostgreSQL E2E                  | replay without duplicate effects                 | PASS                   |
+| Auto-repair             | versioned repair records                                                   | domain goldens                  | before/after/reason/version                       | PASS                   |
+| Preserve row            | export row-count gate                                                      | domain + PostgreSQL E2E         | unresolved retained; no deletion                  | PASS                   |
+| Reviewer                | `listing_analyses.reviewer_decision`                                       | PostgreSQL E2E                  | decision and replay persisted                     | PASS                   |
+| Export/round trip       | `exportSixBitCsv`                                                          | domain + PostgreSQL E2E         | escaping, formula safety, unknown fields          | PASS                   |
+| Security                | middleware + parser limits                                                 | route/domain/Phase 2 regression | access and malformed inputs fail closed           | PASS                   |
+| Idempotency             | import keys, rule identity, answer records, decision keys, export checksum | PostgreSQL E2E                  | replay without duplicate effects                  | PASS                   |
 | Real path               | API + PostgreSQL + Phase 3 Employee Work Screen                            | `test:postgres` + Playwright    | import through UI evidence/revalidation/export    | PASS in CI environment |
-| Phase 2 regression      | unchanged suites plus strengthened filesystem tests                        | workspace/CI suites             | existing behavior remains green                  | PASS                   |
+| Phase 2 regression      | unchanged suites plus strengthened filesystem tests                        | workspace/CI suites             | existing behavior remains green                   | PASS                   |
 
 ## Performance
 

@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
 
 export const SIXBIT_SCHEMA_VERSION = "sixbit-listing-v1";
-export const LISTING_RULESET_VERSION = "listing-rules-v1";
+export const LISTING_RULESET_VERSION = "listing-rules-v2";
+export type ResolutionClass =
+  | "EMPLOYEE_RESOLVABLE"
+  | "REVIEWER_RESOLVABLE"
+  | "NON_OVERRIDABLE_HARD_INVALID";
 
 export const SIXBIT_COLUMNS = [
   "SourceDatabase",
@@ -106,6 +110,7 @@ export interface RuleResult {
   safeRepair?: SafeRepair;
   employeeRequired: boolean;
   reviewerRequired: boolean;
+  resolutionClass?: ResolutionClass;
 }
 export interface EmployeeQuestion {
   id: string;
@@ -116,6 +121,8 @@ export interface EmployeeQuestion {
   required: true;
   displayOrder: number;
   shortcutPosition?: number;
+  min?: number;
+  max?: number;
 }
 export interface Analysis {
   ruleVersion: typeof LISTING_RULESET_VERSION;
@@ -191,10 +198,18 @@ function lot(title: string) {
   const size = Number(lot?.[1] ?? kit?.[1] ?? 0);
   return size > 0 ? size : null;
 }
+function hasInvalidExplicitLot(title: string) {
+  const token = title.match(
+    /(?:^|\s)(\d+)\s+LOT(?:\s|$)|(?:^|\s)KIT\s+(\d+)x(?:\s|$)/i,
+  );
+  if (!token) return false;
+  const value = Number(token[1] ?? token[2]);
+  return !Number.isSafeInteger(value) || value < 1 || value > 1_000;
+}
 
 export function importSixBitCsv(
   content: string,
-  limits = { maxBytes: 2_000_000, maxRows: 10_000 },
+  limits = { maxBytes: 2_000_000, maxRows: 1_000 },
 ): CsvImport {
   if (Buffer.byteLength(content, "utf8") > limits.maxBytes)
     throw new Error("CSV exceeds the byte limit.");
@@ -203,7 +218,12 @@ export function importSixBitCsv(
     throw new Error("CSV requires a header and at least one row.");
   if (matrix.length - 1 > limits.maxRows)
     throw new Error("CSV exceeds the row limit.");
-  const headers = matrix[0]!.map((h) => h.trim());
+  const rawHeaders = matrix[0]!;
+  if (rawHeaders.some((h) => h !== h.trim()))
+    throw new Error(
+      "CSV headers cannot contain leading or trailing whitespace.",
+    );
+  const headers = rawHeaders.slice();
   if (headers.some((h) => !h)) throw new Error("CSV headers cannot be blank.");
   if (new Set(headers.map((h) => h.toLowerCase())).size !== headers.length)
     throw new Error("CSV headers must be unique.");
@@ -314,6 +334,26 @@ function result(
     ...extra,
   };
 }
+export function deriveExportReadiness(
+  results: readonly RuleResult[],
+  reviewerResolvedRuleIds: readonly string[] = [],
+) {
+  const resolved = new Set(reviewerResolvedRuleIds);
+  return results.every((r) => {
+    if (
+      r.ruleId === "EXPORT.READY" ||
+      r.outcome === "PASS" ||
+      r.outcome === "PASS_EMPLOYEE_VERIFIED" ||
+      r.safeRepair
+    )
+      return true;
+    return (
+      r.outcome === "VERIFY" &&
+      r.resolutionClass === "REVIEWER_RESOLVABLE" &&
+      resolved.has(r.ruleId)
+    );
+  });
+}
 export function analyzeListing(
   input: NormalizedListing,
   answers: Readonly<Record<string, unknown>> = {},
@@ -387,7 +427,7 @@ export function analyzeListing(
         "title",
         n.title,
         "Title contains prohibited condition, filler, or negative wording.",
-        { employeeRequired: true },
+        { resolutionClass: "NON_OVERRIDABLE_HARD_INVALID" },
       ),
     );
   else
@@ -409,6 +449,9 @@ export function analyzeListing(
       "title",
       n.title.length,
       "Target title length is 74–80 characters where factual content permits.",
+      n.title.length >= 74 && n.title.length <= 80
+        ? {}
+        : { resolutionClass: "REVIEWER_RESOLVABLE", reviewerRequired: true },
     ),
   );
   const zebra = /\bzebra\b/i.test(`${n.title} ${n.description}`);
@@ -453,7 +496,11 @@ export function analyzeListing(
         "r2Code",
         n.r2Code,
         "R2/custom code is missing and must not be guessed.",
-        { employeeRequired: true },
+        {
+          employeeRequired: true,
+          reviewerRequired: false,
+          resolutionClass: "EMPLOYEE_RESOLVABLE",
+        },
       ),
     );
     questions.push({
@@ -465,7 +512,7 @@ export function analyzeListing(
       required: true,
       displayOrder: 10,
     });
-  } else if (!/^[A-Z0-9][A-Z0-9-]{0,31}$/i.test(n.r2Code))
+  } else if (!/^[A-Z0-9][A-Z0-9-]{0,31}$/i.test(n.r2Code)) {
     results.push(
       result(
         "R2.REQUIRED",
@@ -474,10 +521,22 @@ export function analyzeListing(
         "r2Code",
         n.r2Code,
         "R2/custom code format is invalid.",
-        { employeeRequired: true },
+        {
+          employeeRequired: true,
+          reviewerRequired: false,
+          resolutionClass: "EMPLOYEE_RESOLVABLE",
+        },
       ),
     );
-  else
+    questions.push({
+      id: "q:r2.required",
+      ruleId: "R2.REQUIRED",
+      type: "text",
+      label: "Replace the invalid value with the verified R2/custom code.",
+      required: true,
+      displayOrder: 10,
+    });
+  } else
     results.push(
       result(
         "R2.REQUIRED",
@@ -493,30 +552,92 @@ export function analyzeListing(
     n.qtyUncommitted !== null &&
     n.qtyToList > n.qtyUncommitted
   ) {
-    const verified = answers["q:qty.override"] === true;
+    const verified = answers["q:qty.override.verified"] === true;
+    const authorizedQty = answers["q:qty.override.authorizedQty"];
+    const code = answers["q:qty.override.code"];
+    const reason = answers["q:qty.override.reason"];
+    const source = answers["q:qty.override.source"];
+    const evidenceValid =
+      verified &&
+      authorizedQty === n.qtyToList &&
+      ["MANAGER_APPROVAL", "SYSTEM_RECONCILIATION", "PHYSICAL_COUNT"].includes(
+        String(code),
+      ) &&
+      typeof reason === "string" &&
+      reason.trim().length >= 8 &&
+      reason.length <= 500 &&
+      typeof source === "string" &&
+      source.trim().length >= 3 &&
+      source.length <= 200;
     results.push(
       result(
         "QUANTITY.AVAILABLE",
         "Quantity",
-        verified ? "PASS_EMPLOYEE_VERIFIED" : "VERIFY",
+        evidenceValid ? "PASS_EMPLOYEE_VERIFIED" : "VERIFY",
         "qtyToList",
         n.qtyToList,
-        verified
-          ? "Employee explicitly verified the authorized quantity override."
-          : "QtyToList exceeds QtyUncommitted and requires explicit evidence.",
-        { employeeRequired: !verified, reviewerRequired: !verified },
+        evidenceValid
+          ? "Employee supplied complete, matching authorization evidence."
+          : "QtyToList exceeds QtyUncommitted and requires structured authorization evidence.",
+        {
+          employeeRequired: !evidenceValid,
+          reviewerRequired: false,
+          resolutionClass: "EMPLOYEE_RESOLVABLE",
+        },
       ),
     );
-    if (!verified)
-      questions.push({
-        id: "q:qty.override",
-        ruleId: "QUANTITY.AVAILABLE",
-        type: "boolean",
-        label: "Is this QtyToList override authorized and verified?",
-        required: true,
-        displayOrder: 20,
-        shortcutPosition: 1,
-      });
+    if (!evidenceValid) {
+      questions.push(
+        {
+          id: "q:qty.override.verified",
+          ruleId: "QUANTITY.AVAILABLE",
+          type: "boolean",
+          label: "Is this QtyToList override authorized and verified?",
+          required: true,
+          displayOrder: 20,
+          shortcutPosition: 1,
+        },
+        {
+          id: "q:qty.override.authorizedQty",
+          ruleId: "QUANTITY.AVAILABLE",
+          type: "number",
+          label: "Enter the specifically authorized QtyToList.",
+          required: true,
+          displayOrder: 21,
+          min: 0,
+          max: 1_000_000,
+        },
+        {
+          id: "q:qty.override.code",
+          ruleId: "QUANTITY.AVAILABLE",
+          type: "select",
+          label: "Select the authorization evidence type.",
+          options: [
+            "MANAGER_APPROVAL",
+            "SYSTEM_RECONCILIATION",
+            "PHYSICAL_COUNT",
+          ],
+          required: true,
+          displayOrder: 22,
+        },
+        {
+          id: "q:qty.override.reason",
+          ruleId: "QUANTITY.AVAILABLE",
+          type: "text",
+          label: "Enter the authorization reason (8–500 characters).",
+          required: true,
+          displayOrder: 23,
+        },
+        {
+          id: "q:qty.override.source",
+          ruleId: "QUANTITY.AVAILABLE",
+          type: "text",
+          label: "Enter the evidence source or reference.",
+          required: true,
+          displayOrder: 24,
+        },
+      );
+    }
   } else
     results.push(
       result(
@@ -543,22 +664,80 @@ export function analyzeListing(
       result(
         "QUANTITY.CHECK_COUNT",
         "Quantity",
-        checkCountNeedsEvidence ? "VERIFY" : "PASS",
+        expected === null
+          ? "FAIL"
+          : checkCountNeedsEvidence
+            ? "VERIFY"
+            : "PASS",
         "checkCount",
         n.checkCount,
         expected === null
           ? "Scenario 1 difference must be 0 or 1."
           : `Check Count must be ${String(expected).toUpperCase()} when the difference is ${diff}.`,
-        { employeeRequired: checkCountNeedsEvidence },
+        expected === null
+          ? { resolutionClass: "NON_OVERRIDABLE_HARD_INVALID" }
+          : checkCountNeedsEvidence
+            ? {
+                employeeRequired: true,
+                reviewerRequired: false,
+                resolutionClass: "EMPLOYEE_RESOLVABLE",
+              }
+            : {},
       ),
     );
-    if (checkCountNeedsEvidence)
+    if (checkCountNeedsEvidence && expected !== null)
       questions.push({
         id: "q:check-count",
         ruleId: "QUANTITY.CHECK_COUNT",
         type: "boolean",
         label:
           "Verify the Check Count value for the displayed quantity evidence.",
+        required: true,
+        displayOrder: 30,
+        shortcutPosition: 2,
+      });
+  } else if (
+    (n.qtyCurrentlyListed ?? 0) > 0 &&
+    n.qtyToList !== null &&
+    n.qtyUncommitted !== null
+  ) {
+    const status = n.itemStatus.trim().toLowerCase();
+    const validStatus = /^(active|listed|ended|inactive|out of stock)$/.test(
+      status,
+    );
+    const expected =
+      n.qtyToList !== n.qtyCurrentlyListed || (n.qtySold ?? 0) > 0;
+    if (typeof answers["q:check-count"] === "boolean")
+      n.checkCount = answers["q:check-count"];
+    const needs = validStatus && n.checkCount !== expected;
+    results.push(
+      result(
+        "QUANTITY.CHECK_COUNT",
+        "Quantity",
+        !validStatus ? "FAIL" : needs ? "VERIFY" : "PASS",
+        "checkCount",
+        n.checkCount,
+        !validStatus
+          ? "Listed inventory has an unsupported or ambiguous ItemStatus."
+          : `For listed inventory, Check Count must be ${String(expected).toUpperCase()} from listed/sold quantity evidence.`,
+        !validStatus
+          ? { resolutionClass: "NON_OVERRIDABLE_HARD_INVALID" }
+          : needs
+            ? {
+                employeeRequired: true,
+                reviewerRequired: false,
+                resolutionClass: "EMPLOYEE_RESOLVABLE",
+              }
+            : {},
+      ),
+    );
+    if (needs)
+      questions.push({
+        id: "q:check-count",
+        ruleId: "QUANTITY.CHECK_COUNT",
+        type: "boolean",
+        label:
+          "Verify Check Count for the displayed listed-inventory evidence.",
         required: true,
         displayOrder: 30,
         shortcutPosition: 2,
@@ -588,15 +767,20 @@ export function analyzeListing(
     result(
       "LOT.PARSE",
       "Lot Size",
-      n.lotSize ? "PASS" : "PASS",
+      hasInvalidExplicitLot(n.title) ? "FAIL" : "PASS",
       "lotSize",
       n.lotSize,
-      n.lotSize
-        ? `Parsed an explicit ${n.lotSize}-piece LOT/KIT token.`
-        : "No explicit LOT/KIT token was detected; model-like numbers were ignored.",
+      hasInvalidExplicitLot(n.title)
+        ? "An explicit LOT/KIT token must be a whole number from 1 through 1000."
+        : n.lotSize
+          ? `Parsed an explicit ${n.lotSize}-piece LOT/KIT token.`
+          : "No explicit LOT/KIT token was detected; model-like numbers were ignored.",
+      hasInvalidExplicitLot(n.title)
+        ? { resolutionClass: "NON_OVERRIDABLE_HARD_INVALID" }
+        : {},
     ),
   );
-  const unresolved = results.some((r) => r.outcome === "VERIFY");
+  const unresolved = !deriveExportReadiness(results);
   results.push(
     result(
       "EXPORT.READY",
@@ -620,8 +804,7 @@ export function analyzeListing(
 }
 
 function csvCell(value: string) {
-  const safe = /^[\t\r\n ]*[=+\-@]/.test(value) ? `'${value}` : value;
-  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 export function exportSixBitCsv(
   imported: CsvImport,
@@ -635,7 +818,13 @@ export function exportSixBitCsv(
     const a = analyses[i]!;
     const values = { ...row.original };
     for (const [header, target] of Object.entries(imported.mapping)) {
-      if (!target) continue;
+      if (
+        !target ||
+        !(
+          ["Title", "eBay Description", "R2Code", "Check Count"] as string[]
+        ).includes(target)
+      )
+        continue;
       const key: Record<SixBitKnownColumn, keyof NormalizedListing> = {
         SourceDatabase: "sourceDatabase",
         ItemID: "itemId",

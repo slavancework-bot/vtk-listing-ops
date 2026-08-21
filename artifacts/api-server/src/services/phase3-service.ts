@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import {
   analyzeListing,
+  deriveExportReadiness,
   exportSixBitCsv,
   importSixBitCsv,
   LISTING_RULESET_VERSION,
@@ -50,7 +51,7 @@ export class Phase3Service {
     name?: string;
     correlationId: string;
   }) {
-    if (input.mimeType !== "text/csv" && !/\.csv$/i.test(input.filename))
+    if (input.mimeType !== "text/csv" || !/\.csv$/i.test(input.filename))
       throw new ApiFault(
         415,
         "INVALID_FILE_TYPE",
@@ -115,6 +116,12 @@ export class Phase3Service {
           )
           .limit(1);
         if (raced[0]) {
+          if (raced[0].sourceChecksum !== parsed.checksum)
+            throw new ApiFault(
+              409,
+              "CONFLICT",
+              "The import key was used for different content.",
+            );
           await stored.remove();
           return {
             batchId: raced[0].id,
@@ -217,28 +224,36 @@ export class Phase3Service {
       .from(listingItems)
       .where(eq(listingItems.batchId, batchId))
       .orderBy(asc(listingItems.sourceRowNumber));
+    const existingRows = items.length
+      ? await db
+          .select()
+          .from(listingAnalyses)
+          .where(
+            and(
+              inArray(
+                listingAnalyses.itemId,
+                items.map((i) => i.id),
+              ),
+              eq(listingAnalyses.ruleVersion, LISTING_RULESET_VERSION),
+            ),
+          )
+      : [];
+    const existingByItem = new Map(
+      existingRows.map((row) => [row.itemId, row]),
+    );
     let pass = 0,
       verify = 0,
       processed = 0;
     for (const item of items) {
-      const existing = await db
-        .select()
-        .from(listingAnalyses)
-        .where(
-          and(
-            eq(listingAnalyses.itemId, item.id),
-            eq(listingAnalyses.ruleVersion, LISTING_RULESET_VERSION),
-          ),
-        )
-        .limit(1);
-      const answers = existing[0]?.employeeAnswers ?? {};
+      const existing = existingByItem.get(item.id);
+      const answers = existing?.employeeAnswers ?? {};
       const analysis = analyzeListing(item.normalizedValues as never, answers);
       if (analysis.exportReady) pass++;
       else verify++;
-      if (existing[0]) continue;
+      if (existing) continue;
       processed++;
       await db.transaction(async (tx) => {
-        await tx
+        const [savedAnalysis] = await tx
           .insert(listingAnalyses)
           .values({
             itemId: item.id,
@@ -265,14 +280,19 @@ export class Phase3Service {
               version: sql`${listingAnalyses.version}+1`,
               updatedAt: new Date(),
             },
-          });
+          })
+          .returning({ id: listingAnalyses.id });
         for (const q of analysis.questions)
           await tx
             .insert(listingQuestions)
             .values({
               id: q.id,
               itemId: item.id,
+              analysisId: savedAnalysis!.id,
+              ruleVersion: LISTING_RULESET_VERSION,
               ruleId: q.ruleId,
+              displayOrder: q.displayOrder,
+              lifecycleStatus: "active",
               configuration: q as unknown as Record<string, unknown>,
             })
             .onConflictDoNothing();
@@ -326,9 +346,79 @@ export class Phase3Service {
     const questions = await db
       .select()
       .from(listingQuestions)
-      .where(eq(listingQuestions.itemId, itemId))
-      .orderBy(asc(listingQuestions.createdAt));
+      .where(
+        and(
+          eq(listingQuestions.analysisId, analysis.id),
+          eq(listingQuestions.lifecycleStatus, "active"),
+        ),
+      )
+      .orderBy(asc(listingQuestions.displayOrder));
     return { ...analysis, questions };
+  }
+  async getBatchWork(
+    batchId: string,
+    actorId: string,
+    role: string,
+    offset = 0,
+    limit = 100,
+  ) {
+    await this.access.getBatch(batchId, actorId, role);
+    const safeOffset = Math.max(0, Math.min(offset, 100_000));
+    const safeLimit = Math.max(1, Math.min(limit, 200));
+    const items = await db
+      .select()
+      .from(listingItems)
+      .where(eq(listingItems.batchId, batchId))
+      .orderBy(asc(listingItems.sourceRowNumber))
+      .offset(safeOffset)
+      .limit(safeLimit);
+    if (!items.length)
+      return { batchId, offset: safeOffset, limit: safeLimit, results: [] };
+    const analyses = await db
+      .select()
+      .from(listingAnalyses)
+      .where(
+        and(
+          inArray(
+            listingAnalyses.itemId,
+            items.map((i) => i.id),
+          ),
+          eq(listingAnalyses.ruleVersion, LISTING_RULESET_VERSION),
+        ),
+      );
+    const questions = analyses.length
+      ? await db
+          .select()
+          .from(listingQuestions)
+          .where(
+            and(
+              inArray(
+                listingQuestions.analysisId,
+                analyses.map((a) => a.id),
+              ),
+              eq(listingQuestions.lifecycleStatus, "active"),
+            ),
+          )
+          .orderBy(asc(listingQuestions.displayOrder))
+      : [];
+    const byItem = new Map(
+      analyses.map((analysis) => [
+        analysis.itemId,
+        {
+          ...analysis,
+          questions: questions.filter((q) => q.analysisId === analysis.id),
+        },
+      ]),
+    );
+    return {
+      batchId,
+      offset: safeOffset,
+      limit: safeLimit,
+      results: items.flatMap((item) => {
+        const result = byItem.get(item.id);
+        return result ? [{ item, result }] : [];
+      }),
+    };
   }
   async answer(
     itemId: string,
@@ -410,7 +500,12 @@ export class Phase3Service {
       const knownQuestions = await tx
         .select()
         .from(listingQuestions)
-        .where(eq(listingQuestions.itemId, itemId));
+        .where(
+          and(
+            eq(listingQuestions.analysisId, analysis.id),
+            eq(listingQuestions.lifecycleStatus, "active"),
+          ),
+        );
       const questionById = new Map(
         knownQuestions.map((question) => [
           question.id,
@@ -460,13 +555,35 @@ export class Phase3Service {
             answer: { value },
             answeredBy: actorId,
             answeredAt: new Date(),
+            lifecycleStatus: "answered",
           })
           .where(
             and(
-              eq(listingQuestions.itemId, itemId),
+              eq(listingQuestions.analysisId, analysis.id),
               eq(listingQuestions.id, id),
             ),
           );
+      for (const q of rerun.questions)
+        await tx
+          .insert(listingQuestions)
+          .values({
+            id: q.id,
+            itemId,
+            analysisId: analysis.id,
+            ruleVersion: LISTING_RULESET_VERSION,
+            ruleId: q.ruleId,
+            displayOrder: q.displayOrder,
+            lifecycleStatus: "active",
+            configuration: q as unknown as Record<string, unknown>,
+          })
+          .onConflictDoUpdate({
+            target: [listingQuestions.analysisId, listingQuestions.id],
+            set: {
+              lifecycleStatus: "active",
+              configuration: q as unknown as Record<string, unknown>,
+              displayOrder: q.displayOrder,
+            },
+          });
       await tx
         .update(listingItems)
         .set({
@@ -511,7 +628,13 @@ export class Phase3Service {
     actorId: string,
     role: string,
     idempotencyKey: string,
-    decision: { status: "approved" | "unresolved"; reason: string },
+    decision: {
+      status: "approved" | "unresolved";
+      reason: string;
+      analysisVersion: number;
+      resolvedRuleIds: string[];
+      evidence: Record<string, string>;
+    },
     correlationId: string,
   ) {
     if (role !== "reviewer" && role !== "admin")
@@ -519,6 +642,10 @@ export class Phase3Service {
     if (
       !idempotencyKey ||
       !decision.reason?.trim() ||
+      !Number.isSafeInteger(decision.analysisVersion) ||
+      !Array.isArray(decision.resolvedRuleIds) ||
+      !decision.evidence ||
+      typeof decision.evidence !== "object" ||
       !["approved", "unresolved"].includes(decision.status)
     )
       throw new ApiFault(
@@ -527,10 +654,33 @@ export class Phase3Service {
         "Idempotency key and reviewer reason are required.",
       );
     const item = await this.access.requireItemAccess(itemId, actorId, role);
+    const requestHash = createHash("sha256")
+      .update(JSON.stringify({ itemId, decision }))
+      .digest("hex");
     return db.transaction(async (tx) => {
       await tx.execute(
         sql`select pg_advisory_xact_lock(hashtext(${`${actorId}:phase3-review:${itemId}:${idempotencyKey}`}))`,
       );
+      const [replay] = await tx
+        .select()
+        .from(idempotencyRecords)
+        .where(
+          and(
+            eq(idempotencyRecords.actorId, actorId),
+            eq(idempotencyRecords.operation, "phase3_review"),
+            eq(idempotencyRecords.key, idempotencyKey),
+          ),
+        )
+        .limit(1);
+      if (replay) {
+        if (replay.requestHash !== requestHash)
+          throw new ApiFault(
+            409,
+            "CONFLICT",
+            "The idempotency key was used for a different review.",
+          );
+        return { ...replay.responseBody, replayed: true };
+      }
       const [analysis] = await tx
         .select()
         .from(listingAnalyses)
@@ -544,16 +694,48 @@ export class Phase3Service {
         .limit(1);
       if (!analysis)
         throw new ApiFault(404, "NOT_FOUND", "Item has not been analyzed.");
-      const prior = analysis.reviewerDecision
-        ? asRecord(analysis.reviewerDecision)
-        : null;
-      if (prior?.idempotencyKey === idempotencyKey)
-        return { itemId, replayed: true, decision: prior };
-      if (prior)
+      if (analysis.reviewerDecision)
         throw new ApiFault(
           409,
           "CONFLICT",
           "Reviewer decision already exists.",
+        );
+      if (analysis.version !== decision.analysisVersion)
+        throw new ApiFault(
+          409,
+          "STALE_ANALYSIS",
+          "The analysis changed; refresh before reviewing.",
+        );
+      const results = analysis.results as unknown as Analysis["results"];
+      const resolvable = new Set(
+        results
+          .filter(
+            (r) =>
+              r.outcome === "VERIFY" &&
+              r.resolutionClass === "REVIEWER_RESOLVABLE",
+          )
+          .map((r) => r.ruleId),
+      );
+      if (decision.resolvedRuleIds.some((id) => !resolvable.has(id)))
+        throw new ApiFault(
+          422,
+          "INVALID_REVIEW_RESOLUTION",
+          "Only current reviewer-resolvable rules may be resolved.",
+        );
+      if (decision.resolvedRuleIds.some((id) => !decision.evidence[id]?.trim()))
+        throw new ApiFault(
+          422,
+          "INVALID_REVIEW_EVIDENCE",
+          "Every resolved rule requires evidence.",
+        );
+      const exportReady =
+        decision.status === "approved" &&
+        deriveExportReadiness(results, decision.resolvedRuleIds);
+      if (decision.status === "approved" && !exportReady)
+        throw new ApiFault(
+          422,
+          "UNRESOLVED_EXPORT_GATES",
+          "Hard-invalid or unresolved employee gates still block export.",
         );
       const saved = {
         ...decision,
@@ -565,7 +747,7 @@ export class Phase3Service {
         .update(listingAnalyses)
         .set({
           reviewerDecision: saved,
-          exportReady: decision.status === "approved",
+          exportReady,
           version: sql`${listingAnalyses.version}+1`,
           updatedAt: new Date(),
         })
@@ -573,7 +755,7 @@ export class Phase3Service {
       await tx
         .update(listingItems)
         .set({
-          status: decision.status === "approved" ? "reviewed" : "needs_review",
+          status: exportReady ? "reviewed" : "needs_review",
           updatedAt: new Date(),
         })
         .where(eq(listingItems.id, itemId));
@@ -586,7 +768,22 @@ export class Phase3Service {
         correlationId,
         metadata: saved,
       });
-      return { itemId, replayed: false, decision: saved };
+      const response = {
+        itemId,
+        exportReady,
+        replayed: false,
+        decision: saved,
+      };
+      await tx.insert(idempotencyRecords).values({
+        key: idempotencyKey,
+        actorId,
+        operation: "phase3_review",
+        requestHash,
+        responseStatus: 200,
+        responseBody: response as unknown as Record<string, unknown>,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
+      return response;
     });
   }
   async exportBatch(batchId: string, actorId: string, role: string) {
@@ -600,23 +797,22 @@ export class Phase3Service {
       .from(listingItems)
       .where(eq(listingItems.batchId, batchId))
       .orderBy(asc(listingItems.sourceRowNumber));
-    const analyses = await Promise.all(
-      items.map(
-        async (item) =>
-          (
-            await db
-              .select()
-              .from(listingAnalyses)
-              .where(
-                and(
-                  eq(listingAnalyses.itemId, item.id),
-                  eq(listingAnalyses.ruleVersion, LISTING_RULESET_VERSION),
-                ),
-              )
-              .limit(1)
-          )[0],
-      ),
-    );
+    const analysisRows = items.length
+      ? await db
+          .select()
+          .from(listingAnalyses)
+          .where(
+            and(
+              inArray(
+                listingAnalyses.itemId,
+                items.map((i) => i.id),
+              ),
+              eq(listingAnalyses.ruleVersion, LISTING_RULESET_VERSION),
+            ),
+          )
+      : [];
+    const byItem = new Map(analysisRows.map((a) => [a.itemId, a]));
+    const analyses = items.map((item) => byItem.get(item.id));
     if (analyses.some((a) => !a || !a.exportReady))
       throw new ApiFault(
         409,
@@ -665,6 +861,22 @@ export class Phase3Service {
           after: reparsedOutput.rows[index]!.original[field],
         })),
     );
+    const allowedHeaders = new Set(
+      Object.entries(imported.mapping)
+        .filter(([, target]) =>
+          ["Title", "eBay Description", "R2Code", "Check Count"].includes(
+            String(target),
+          ),
+        )
+        .map(([header]) => header),
+    );
+    const forbidden = diffs.filter((diff) => !allowedHeaders.has(diff.field));
+    if (forbidden.length)
+      throw new ApiFault(
+        422,
+        "EXPORT_FIELD_POLICY_VIOLATION",
+        "Export attempted to mutate a pass-through or non-allowlisted field.",
+      );
     const [saved] = await db
       .insert(listingExports)
       .values({
@@ -687,10 +899,27 @@ export class Phase3Service {
           .where(
             and(
               eq(listingExports.batchId, batchId),
-              eq(listingExports.checksum, output.checksum),
+              eq(listingExports.ruleVersion, LISTING_RULESET_VERSION),
+              eq(listingExports.schemaVersion, SIXBIT_SCHEMA_VERSION),
             ),
           )
           .limit(1);
+    if (saved)
+      await db.insert(auditEvents).values({
+        batchId,
+        actorId,
+        actorRole: role as "reviewer" | "admin",
+        action: "listing_exported",
+        correlationId: `phase3-export:${existing!.id}`,
+        metadata: {
+          exportId: existing!.id,
+          checksum: output.checksum,
+          rowCount: output.rowCount,
+          ruleVersion: LISTING_RULESET_VERSION,
+          schemaVersion: SIXBIT_SCHEMA_VERSION,
+          changedFields: [...new Set(diffs.map((d) => d.field))],
+        },
+      });
     return {
       exportId: existing!.id,
       checksum: output.checksum,

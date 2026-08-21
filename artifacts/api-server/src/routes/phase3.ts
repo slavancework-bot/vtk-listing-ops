@@ -62,6 +62,33 @@ export function createPhase3Router(service: Phase3Service) {
     },
   );
   r.get(
+    "/phase3/batches/:batchId/work",
+    requireRole("employee", "reviewer", "admin"),
+    async (req, res, next) => {
+      try {
+        const offset = Number(req.query.offset ?? 0),
+          limit = Number(req.query.limit ?? 100);
+        if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(limit))
+          throw new ApiFault(
+            400,
+            "VALIDATION_ERROR",
+            "Pagination values must be integers.",
+          );
+        res.json(
+          await service.getBatchWork(
+            id(req.params.batchId),
+            req.identity!.subject,
+            req.identity!.role,
+            offset,
+            limit,
+          ),
+        );
+      } catch (e) {
+        next(e);
+      }
+    },
+  );
+  r.get(
     "/phase3/items/:itemId/results",
     requireRole("employee", "reviewer", "admin"),
     async (req, res, next) => {
@@ -84,7 +111,12 @@ export function createPhase3Router(service: Phase3Service) {
     writeRateLimit,
     async (req, res, next) => {
       try {
-        if (!req.body || typeof req.body.answers !== "object")
+        if (
+          !req.body ||
+          Object.keys(req.body).some((k) => k !== "answers") ||
+          typeof req.body.answers !== "object" ||
+          Array.isArray(req.body.answers)
+        )
           throw new ApiFault(400, "VALIDATION_ERROR", "Answers are required.");
         res.json(
           await service.answer(
@@ -107,6 +139,35 @@ export function createPhase3Router(service: Phase3Service) {
     writeRateLimit,
     async (req, res, next) => {
       try {
+        const b = req.body;
+        if (
+          !b ||
+          Object.keys(b).some(
+            (k) =>
+              ![
+                "status",
+                "reason",
+                "analysisVersion",
+                "resolvedRuleIds",
+                "evidence",
+              ].includes(k),
+          ) ||
+          !["approved", "unresolved"].includes(b.status) ||
+          typeof b.reason !== "string" ||
+          b.reason.length > 2000 ||
+          !Number.isSafeInteger(b.analysisVersion) ||
+          !Array.isArray(b.resolvedRuleIds) ||
+          b.resolvedRuleIds.some((v: unknown) => typeof v !== "string") ||
+          !b.evidence ||
+          typeof b.evidence !== "object" ||
+          Array.isArray(b.evidence) ||
+          Object.values(b.evidence).some((v) => typeof v !== "string")
+        )
+          throw new ApiFault(
+            400,
+            "VALIDATION_ERROR",
+            "Review request is invalid.",
+          );
         res.json(
           await service.review(
             id(req.params.itemId),

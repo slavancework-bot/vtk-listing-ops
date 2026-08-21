@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { analyzeListing, exportSixBitCsv, importSixBitCsv } from "./phase3";
+import {
+  analyzeListing,
+  deriveExportReadiness,
+  exportSixBitCsv,
+  importSixBitCsv,
+} from "./phase3";
 
 const header =
   "SourceDatabase,ItemID,InventoryID,SKU,Title,eBay Description,QtyToList,QtyUncommitted,QtyCurrentlyListed,QtySold,StockTotal,FixedPrice,ItemStatus,Condition,R2Code,Check Count,Unknown Keep";
@@ -92,9 +97,17 @@ test("quantity scenario 1, explicit override evidence, StockTotal, and LOT parsi
     qtyUncommitted: 2,
   };
   a = analyzeListing(override);
-  assert.ok(a.questions.some((question) => question.id === "q:qty.override"));
+  assert.ok(
+    a.questions.some((question) => question.id === "q:qty.override.verified"),
+  );
   assert.equal(a.normalized.lotSize, 12);
-  const verified = analyzeListing(override, { "q:qty.override": true });
+  const verified = analyzeListing(override, {
+    "q:qty.override.verified": true,
+    "q:qty.override.authorizedQty": 3,
+    "q:qty.override.code": "MANAGER_APPROVAL",
+    "q:qty.override.reason": "Approved synthetic evidence",
+    "q:qty.override.source": "manager-42",
+  });
   assert.equal(
     verified.results.find((r) => r.ruleId === "QUANTITY.AVAILABLE")!.outcome,
     "PASS_EMPLOYEE_VERIFIED",
@@ -126,7 +139,7 @@ test("round trip preserves pass-through semantics and changes only intended repa
   );
   assert.equal(exported.rowCount, parsed.rows.length);
 });
-test("export quotes multiline values and neutralizes spreadsheet formulas without dropping rows", () => {
+test("export quotes multiline values and preserves raw formula-like pass-through fields", () => {
   const malicious = csv(
     clean
       .replace("SKU-1", "=1+1")
@@ -136,7 +149,7 @@ test("export quotes multiline values and neutralizes spreadsheet formulas withou
   const output = exportSixBitCsv(parsed, [
     analyzeListing(parsed.rows[0]!.normalized),
   ]);
-  assert.match(output.content, /'=1\+1/);
+  assert.match(output.content, /,=1\+1,/);
   assert.match(output.content, /"line one\nline two/);
   assert.equal(output.rowCount, 1);
 });
@@ -156,5 +169,74 @@ test("realistic synthetic batch remains linear enough for synchronous nonproduct
   assert.ok(
     performance.now() - started < 5_000,
     "1,000-row import/analyze/export exceeded five seconds",
+  );
+});
+
+test("unresolved rules have explicit resolution classes and invalid R2 has an employee question", () => {
+  const row = importSixBitCsv(csv(clean)).rows[0]!;
+  const analysis = analyzeListing({
+    ...row.normalized,
+    r2Code: "bad value",
+    title: "Used short title",
+  });
+  const unresolved = analysis.results.filter(
+    (r) =>
+      r.ruleId !== "EXPORT.READY" &&
+      (r.outcome === "VERIFY" || (r.outcome === "FAIL" && !r.safeRepair)),
+  );
+  assert.ok(unresolved.every((r) => r.resolutionClass));
+  assert.ok(analysis.questions.some((q) => q.id === "q:r2.required"));
+});
+
+test("review evidence resolves reviewer rules but cannot resolve hard-invalid rules", () => {
+  const row = importSixBitCsv(csv(clean)).rows[0]!;
+  const short = analyzeListing({
+    ...row.normalized,
+    title: "NEW valid factual short title",
+  });
+  assert.equal(deriveExportReadiness(short.results, ["TITLE.LENGTH"]), true);
+  const hard = analyzeListing({
+    ...row.normalized,
+    title: "Used invalid title",
+    qtyToList: 9,
+    qtyUncommitted: 2,
+    qtyCurrentlyListed: 0,
+  });
+  assert.equal(
+    deriveExportReadiness(
+      hard.results,
+      hard.results.map((r) => r.ruleId),
+    ),
+    false,
+  );
+});
+
+test("listed quantity truth table is deterministic and ambiguous status fails closed", () => {
+  const row = importSixBitCsv(csv(clean)).rows[0]!;
+  const listed = {
+    ...row.normalized,
+    qtyCurrentlyListed: 2,
+    qtyToList: 2,
+    qtySold: 0,
+    itemStatus: "Active",
+    checkCount: false,
+  };
+  assert.equal(
+    analyzeListing(listed).results.find(
+      (r) => r.ruleId === "QUANTITY.CHECK_COUNT",
+    )!.outcome,
+    "PASS",
+  );
+  assert.equal(
+    analyzeListing({ ...listed, qtyToList: 1 }).results.find(
+      (r) => r.ruleId === "QUANTITY.CHECK_COUNT",
+    )!.outcome,
+    "VERIFY",
+  );
+  assert.equal(
+    analyzeListing({ ...listed, itemStatus: "maybe" }).results.find(
+      (r) => r.ruleId === "QUANTITY.CHECK_COUNT",
+    )!.outcome,
+    "FAIL",
   );
 });
