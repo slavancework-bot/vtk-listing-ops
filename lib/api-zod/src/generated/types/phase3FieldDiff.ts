@@ -6,4 +6,10 @@
  * OpenAPI spec version: 0.3.0
  */
 
-export type AnswerPhase3Questions200 = { [key: string]: unknown };
+export interface Phase3FieldDiff {
+  itemId: string;
+  /** @minLength 1 */
+  field: string;
+  before: string;
+  after: string;
+}

@@ -155,6 +155,8 @@ export default function Phase3EmployeeScreen() {
                             type={config.type === "number" ? "number" : "text"}
                             min={config.min}
                             max={config.max}
+                            minLength={config.minLength}
+                            maxLength={config.maxLength}
                             className="mt-1"
                             aria-label={config.label}
                             value={String(values[key] ?? "")}

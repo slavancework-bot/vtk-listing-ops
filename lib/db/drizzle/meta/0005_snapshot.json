@@ -1194,7 +1194,7 @@
       "checkConstraints": {
         "listing_questions_lifecycle_valid": {
           "name": "listing_questions_lifecycle_valid",
-          "value": "\"listing_questions\".\"lifecycle_status\" in ('active','answered','superseded')"
+          "value": "\"listing_questions\".\"lifecycle_status\" in ('active','answered','resolved','superseded')"
         }
       },
       "isRLSEnabled": false

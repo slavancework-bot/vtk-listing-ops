@@ -13,4 +13,4 @@ ALTER TABLE "listing_questions" ADD CONSTRAINT "listing_questions_analysis_id_li
 CREATE UNIQUE INDEX "listing_exports_batch_rule_schema_uq" ON "listing_exports" USING btree ("batch_id","rule_version","schema_version");--> statement-breakpoint
 CREATE UNIQUE INDEX "listing_questions_analysis_id_uq" ON "listing_questions" USING btree ("analysis_id","id");--> statement-breakpoint
 CREATE INDEX "listing_questions_item_rule_status_idx" ON "listing_questions" USING btree ("item_id","rule_version","lifecycle_status");--> statement-breakpoint
-ALTER TABLE "listing_questions" ADD CONSTRAINT "listing_questions_lifecycle_valid" CHECK ("listing_questions"."lifecycle_status" in ('active','answered','superseded'));
+ALTER TABLE "listing_questions" ADD CONSTRAINT "listing_questions_lifecycle_valid" CHECK ("listing_questions"."lifecycle_status" in ('active','answered','resolved','superseded'));

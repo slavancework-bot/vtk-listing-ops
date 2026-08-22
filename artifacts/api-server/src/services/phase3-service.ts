@@ -244,6 +244,11 @@ export class Phase3Service {
     let pass = 0,
       verify = 0,
       processed = 0;
+    const pending: Array<{
+      item: (typeof items)[number];
+      analysis: Analysis;
+      answers: Record<string, unknown>;
+    }> = [];
     for (const item of items) {
       const existing = existingByItem.get(item.id);
       const answers = existing?.employeeAnswers ?? {};
@@ -252,59 +257,76 @@ export class Phase3Service {
       else verify++;
       if (existing) continue;
       processed++;
+      pending.push({ item, analysis, answers });
+    }
+    if (pending.length)
       await db.transaction(async (tx) => {
-        const [savedAnalysis] = await tx
+        await tx
           .insert(listingAnalyses)
-          .values({
-            itemId: item.id,
-            ruleVersion: LISTING_RULESET_VERSION,
-            normalizedValues: analysis.normalized as unknown as Record<
-              string,
-              unknown
-            >,
-            results: analysis.results as unknown as Record<string, unknown>[],
-            repairs: analysis.repairs as unknown as Record<string, unknown>[],
-            employeeAnswers: answers,
-            exportReady: analysis.exportReady,
-          })
-          .onConflictDoUpdate({
-            target: [listingAnalyses.itemId, listingAnalyses.ruleVersion],
-            set: {
+          .values(
+            pending.map(({ item, analysis, answers }) => ({
+              itemId: item.id,
+              ruleVersion: LISTING_RULESET_VERSION,
               normalizedValues: analysis.normalized as unknown as Record<
                 string,
                 unknown
               >,
               results: analysis.results as unknown as Record<string, unknown>[],
               repairs: analysis.repairs as unknown as Record<string, unknown>[],
+              employeeAnswers: answers,
               exportReady: analysis.exportReady,
-              version: sql`${listingAnalyses.version}+1`,
-              updatedAt: new Date(),
-            },
-          })
-          .returning({ id: listingAnalyses.id });
-        for (const q of analysis.questions)
+            })),
+          )
+          .onConflictDoNothing();
+        const saved = await tx
+          .select({ id: listingAnalyses.id, itemId: listingAnalyses.itemId })
+          .from(listingAnalyses)
+          .where(
+            and(
+              inArray(
+                listingAnalyses.itemId,
+                pending.map(({ item }) => item.id),
+              ),
+              eq(listingAnalyses.ruleVersion, LISTING_RULESET_VERSION),
+            ),
+          );
+        const analysisIdByItem = new Map(
+          saved.map((row) => [row.itemId, row.id]),
+        );
+        const questionValues = pending.flatMap(({ item, analysis }) =>
+          analysis.questions.map((q) => ({
+            id: q.id,
+            itemId: item.id,
+            analysisId: analysisIdByItem.get(item.id)!,
+            ruleVersion: LISTING_RULESET_VERSION,
+            ruleId: q.ruleId,
+            displayOrder: q.displayOrder,
+            lifecycleStatus: "active",
+            configuration: q as unknown as Record<string, unknown>,
+          })),
+        );
+        if (questionValues.length)
           await tx
             .insert(listingQuestions)
-            .values({
-              id: q.id,
-              itemId: item.id,
-              analysisId: savedAnalysis!.id,
-              ruleVersion: LISTING_RULESET_VERSION,
-              ruleId: q.ruleId,
-              displayOrder: q.displayOrder,
-              lifecycleStatus: "active",
-              configuration: q as unknown as Record<string, unknown>,
-            })
+            .values(questionValues)
             .onConflictDoNothing();
-        await tx
-          .update(listingItems)
-          .set({
-            status: analysis.exportReady ? "completed" : "ready_for_employee",
-            updatedAt: new Date(),
-          })
-          .where(eq(listingItems.id, item.id));
+        const completedIds = pending
+          .filter(({ analysis }) => analysis.exportReady)
+          .map(({ item }) => item.id);
+        const employeeIds = pending
+          .filter(({ analysis }) => !analysis.exportReady)
+          .map(({ item }) => item.id);
+        if (completedIds.length)
+          await tx
+            .update(listingItems)
+            .set({ status: "completed", updatedAt: new Date() })
+            .where(inArray(listingItems.id, completedIds));
+        if (employeeIds.length)
+          await tx
+            .update(listingItems)
+            .set({ status: "ready_for_employee", updatedAt: new Date() })
+            .where(inArray(listingItems.id, employeeIds));
       });
-    }
     if (processed > 0)
       await db.insert(auditEvents).values({
         batchId,
@@ -401,12 +423,18 @@ export class Phase3Service {
           )
           .orderBy(asc(listingQuestions.displayOrder))
       : [];
+    const questionsByAnalysis = new Map<string, typeof questions>();
+    for (const question of questions) {
+      const group = questionsByAnalysis.get(question.analysisId) ?? [];
+      group.push(question);
+      questionsByAnalysis.set(question.analysisId, group);
+    }
     const byItem = new Map(
       analyses.map((analysis) => [
         analysis.itemId,
         {
           ...analysis,
-          questions: questions.filter((q) => q.analysisId === analysis.id),
+          questions: questionsByAnalysis.get(analysis.id) ?? [],
         },
       ]),
     );
@@ -530,6 +558,41 @@ export class Phase3Service {
             "VALIDATION_ERROR",
             `Answer type does not match ${answerId}.`,
           );
+        if (
+          question.type === "select" &&
+          (!Array.isArray(question.options) ||
+            !question.options.includes(value))
+        )
+          throw new ApiFault(
+            400,
+            "VALIDATION_ERROR",
+            `Answer is not an allowed option for ${answerId}.`,
+          );
+        if (
+          question.type === "number" &&
+          ((typeof question.min === "number" &&
+            (value as number) < question.min) ||
+            (typeof question.max === "number" &&
+              (value as number) > question.max))
+        )
+          throw new ApiFault(
+            400,
+            "VALIDATION_ERROR",
+            `Answer is outside the allowed range for ${answerId}.`,
+          );
+        if (
+          typeof value === "string" &&
+          (!value.trim() ||
+            (typeof question.minLength === "number" &&
+              value.trim().length < question.minLength) ||
+            (typeof question.maxLength === "number" &&
+              value.length > question.maxLength))
+        )
+          throw new ApiFault(
+            400,
+            "VALIDATION_ERROR",
+            `Answer text is outside the allowed bounds for ${answerId}.`,
+          );
       }
       const merged = { ...analysis.employeeAnswers, ...answers };
       const rerun = analyzeListing(item.normalizedValues as never, merged);
@@ -555,7 +618,7 @@ export class Phase3Service {
             answer: { value },
             answeredBy: actorId,
             answeredAt: new Date(),
-            lifecycleStatus: "answered",
+            lifecycleStatus: "resolved",
           })
           .where(
             and(

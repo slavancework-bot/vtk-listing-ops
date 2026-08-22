@@ -1104,6 +1104,59 @@ test("real Phase 3 PostgreSQL path preserves originals through analysis, evidenc
   );
   assert.equal(summary.total, 4);
   assert.ok(summary.verify >= 2);
+  const historicalAnalysis = await pool.query<{ id: string }>(
+    `insert into listing_analyses
+      (item_id, rule_version, normalized_values, results, repairs, employee_answers, export_ready)
+     values ($1, 'listing-rules-v1', '{"title":"Historical V1"}', '[]', '[]',
+       '{"q:historical":"V1-EVIDENCE"}', false)
+     returning id`,
+    [before.rows[2].id],
+  );
+  await pool.query(
+    `insert into listing_questions
+      (id, item_id, analysis_id, rule_id, rule_version, display_order, lifecycle_status,
+       configuration, answer, answered_by, answered_at)
+     values ('q:historical', $1, $2, 'R2', 'listing-rules-v1', 1, 'superseded',
+       '{"type":"text"}', '"V1-EVIDENCE"', 'historical-employee', now())`,
+    [before.rows[2].id, historicalAnalysis.rows[0].id],
+  );
+  const isolatedCurrent = await service.getResult(
+    before.rows[2].id,
+    "phase3-owner",
+    "employee",
+  );
+  assert.equal(isolatedCurrent.ruleVersion, "listing-rules-v2");
+  assert.equal(
+    isolatedCurrent.questions.some((question) => question.id === "q:historical"),
+    false,
+  );
+  assert.equal(
+    (
+      await pool.query(
+        "select 1 from listing_analyses where item_id=$1 and rule_version in ('listing-rules-v1','listing-rules-v2')",
+        [before.rows[2].id],
+      )
+    ).rowCount,
+    2,
+  );
+  await service.answer(
+    before.rows[2].id,
+    "phase3-owner",
+    "employee",
+    "r2-invalid-evidence",
+    { "q:r2.required": "bad value" },
+    "00000000-0000-4000-8000-000000000076",
+  );
+  const invalidR2 = await service.getResult(
+    before.rows[2].id,
+    "phase3-owner",
+    "employee",
+  );
+  assert.equal(invalidR2.exportReady, false);
+  assert.deepEqual(
+    invalidR2.questions.map((question) => question.id),
+    ["q:r2.required"],
+  );
   await service.answer(
     before.rows[2].id,
     "phase3-owner",
@@ -1194,6 +1247,12 @@ test("real Phase 3 PostgreSQL path preserves originals through analysis, evidenc
   assert.match(exported.content, /UnknownPassThrough/);
   assert.match(exported.content, /keep-three/);
   assert.match(exported.content, /=preserve-literal/);
+  const replayedExport = await service.exportBatch(
+    imported.batchId,
+    "phase3-reviewer",
+    "reviewer",
+  );
+  assert.equal(replayedExport.exportId, exported.exportId);
   const after = await pool.query<{
     original_values: Record<string, string>;
     stock: string;
@@ -1217,6 +1276,15 @@ test("real Phase 3 PostgreSQL path preserves originals through analysis, evidenc
     ).rowCount,
     1,
   );
+  const exportAudits = await pool.query<{ metadata: Record<string, unknown> }>(
+    "select metadata from audit_events where batch_id=$1 and action='listing_exported'",
+    [imported.batchId],
+  );
+  assert.equal(exportAudits.rowCount, 1);
+  assert.equal(exportAudits.rows[0].metadata.exportId, exported.exportId);
+  assert.equal(exportAudits.rows[0].metadata.checksum, exported.checksum);
+  assert.equal(exportAudits.rows[0].metadata.rowCount, 4);
+  assert.equal(exportAudits.rows[0].metadata.ruleVersion, "listing-rules-v2");
   assert.equal(
     (
       await pool.query(
@@ -1225,6 +1293,193 @@ test("real Phase 3 PostgreSQL path preserves originals through analysis, evidenc
       )
     ).rowCount! >= 2,
     true,
+  );
+});
+
+test("1000-row Phase 3 API service path remains bounded on real PostgreSQL", async () => {
+  const stored = new Map<string, Buffer>();
+  const storage: FileStorage = {
+    store: async (content) => {
+      const key = `performance-${stored.size + 1}.csv`;
+      stored.set(key, content);
+      return { key, remove: async () => void stored.delete(key) };
+    },
+  };
+  const service = new Phase3Service(storage, new Phase2Service(storage));
+  const header =
+    "SourceDatabase,ItemID,InventoryID,SKU,Title,eBay Description,StorageLocation,QtyToList,QtyUncommitted,QtyCurrentlyListed,QtySold,StockTotal,FixedPrice,ItemStatus,ItemStatusID,Condition,R2Code,Check Count,CF Check,UnknownPassThrough";
+  const title =
+    "NEW Industrial Network Adapter Module Model ZX9000 USB Ethernet Mounting Kit";
+  const rows = Array.from({ length: 1000 }, (_, index) => {
+    const id = String(index + 1).padStart(6, "0");
+    return `VTK,${id},INV-${id},SKU-${id},${title},Verified synthetic item.,P-${id},1,1,0,0,1,10.00,Ready,1,A,R2-${id},FALSE,OK,pass-${id}`;
+  });
+  const content = `${header}\r\n${rows.join("\r\n")}\r\n`;
+  const elapsed: Record<string, number> = {};
+  const timed = async <T>(name: string, operation: () => Promise<T>) => {
+    const started = performance.now();
+    const result = await operation();
+    elapsed[name] = Math.round(performance.now() - started);
+    return result;
+  };
+  const imported = await timed("import", () =>
+    service.import({
+      actorId: "performance-owner",
+      role: "employee",
+      importKey: "phase3-performance-1000",
+      filename: "performance.csv",
+      mimeType: "text/csv",
+      content,
+      correlationId: "00000000-0000-4000-8000-000000000080",
+    }),
+  );
+  assert.equal(imported.itemCount, 1000);
+  const analyzed = await timed("analysis", () =>
+    service.analyzeBatch(
+      imported.batchId,
+      "performance-owner",
+      "employee",
+      "00000000-0000-4000-8000-000000000081",
+    ),
+  );
+  assert.deepEqual(
+    { total: analyzed.total, pass: analyzed.pass, exportReady: analyzed.exportReady },
+    { total: 1000, pass: 1000, exportReady: 1000 },
+  );
+  const work = await timed("workPage", () =>
+    service.getBatchWork(
+      imported.batchId,
+      "performance-owner",
+      "employee",
+      0,
+      100,
+    ),
+  );
+  assert.equal(work.results.length, 100);
+  const reanalyzed = await timed("reanalysis", () =>
+    service.analyzeBatch(
+      imported.batchId,
+      "performance-owner",
+      "employee",
+      "00000000-0000-4000-8000-000000000082",
+    ),
+  );
+  assert.equal(reanalyzed.replayed, true);
+  const exported = await timed("export", () =>
+    service.exportBatch(
+      imported.batchId,
+      "performance-reviewer",
+      "reviewer",
+    ),
+  );
+  assert.equal(exported.rowCount, 1000);
+  assert.equal(
+    (await pool.query("select count(*)::int as count from listing_analyses where rule_version='listing-rules-v2' and item_id in (select id from listing_items where batch_id=$1)", [imported.batchId])).rows[0].count,
+    1000,
+  );
+  assert.equal(
+    (await pool.query("select count(*)::int as count from listing_questions where item_id in (select id from listing_items where batch_id=$1)", [imported.batchId])).rows[0].count,
+    0,
+  );
+  for (const [stage, milliseconds] of Object.entries(elapsed))
+    assert.ok(milliseconds < 30_000, `${stage} exceeded 30s: ${milliseconds}ms`);
+  assert.equal(stored.size, 1);
+});
+
+test("populated 0004 database upgrades to 0005 without losing Phase 3 history", async () => {
+  await pool.query("drop schema public cascade; create schema public");
+  const migrationFiles = (await readdir(migrationsFolder))
+    .filter((name) => /^000[0-4]_.*\.sql$/.test(name))
+    .sort();
+  for (const filename of migrationFiles) {
+    const sql = await readFile(join(migrationsFolder, filename), "utf8");
+    for (const statement of sql.split("--> statement-breakpoint")) {
+      if (statement.trim()) await pool.query(statement);
+    }
+  }
+
+  const batch = await pool.query<{ id: string }>(
+    "insert into batches(name, source) values ('Populated 0004', 'csv') returning id",
+  );
+  const item = await pool.query<{ id: string }>(
+    `insert into listing_items
+      (batch_id, source_row_id, source_row_number, sku, original_values, normalized_values, question_configuration, status)
+     values ($1, 'row-1', 1, 'SKU-0004', '{"StockTotal":"007"}', '{"title":"Historical title"}', '{}', 'ready_for_employee')
+     returning id`,
+    [batch.rows[0].id],
+  );
+  const analysis = await pool.query<{ id: string }>(
+    `insert into listing_analyses
+      (item_id, rule_version, normalized_values, results, repairs, employee_answers, reviewer_decision, export_ready)
+     values ($1, 'listing-rules-v1', '{"title":"Historical title"}', '[]', '[]',
+       '{"q:r2.required":"R2-F3-HISTORY"}',
+       '{"status":"approved","reason":"Historical decision"}', true)
+     returning id`,
+    [item.rows[0].id],
+  );
+  await pool.query(
+    `insert into listing_questions
+      (id, item_id, rule_id, configuration, answer, answered_by, answered_at)
+     values ('q:r2.required', $1, 'R2', '{"displayOrder":7,"type":"text"}',
+       '"R2-F3-HISTORY"', 'historical-employee', now())`,
+    [item.rows[0].id],
+  );
+  const historicalContent = "SKU,StockTotal\r\nSKU-0004,007\r\n";
+  await pool.query(
+    `insert into listing_exports
+      (batch_id, rule_version, schema_version, checksum, row_count, content, field_diffs, generated_by)
+     values ($1, 'listing-rules-v1', 'sixbit-v1', 'historical-checksum', 1, $2, '[]', 'historical-reviewer')`,
+    [batch.rows[0].id, historicalContent],
+  );
+
+  const upgrade = await readFile(
+    join(migrationsFolder, "0005_silky_ultragirl.sql"),
+    "utf8",
+  );
+  for (const statement of upgrade.split("--> statement-breakpoint")) {
+    if (statement.trim()) await pool.query(statement);
+  }
+
+  const question = await pool.query<{
+    analysis_id: string;
+    rule_version: string;
+    display_order: number;
+    lifecycle_status: string;
+    answer: string;
+  }>(
+    "select analysis_id, rule_version, display_order, lifecycle_status, answer #>> '{}' as answer from listing_questions",
+  );
+  assert.deepEqual(question.rows, [
+    {
+      analysis_id: analysis.rows[0].id,
+      rule_version: "listing-rules-v1",
+      display_order: 7,
+      lifecycle_status: "active",
+      answer: "R2-F3-HISTORY",
+    },
+  ]);
+  const preserved = await pool.query<{
+    employee_answers: Record<string, string>;
+    reviewer_decision: Record<string, string>;
+    content: string;
+  }>(
+    `select a.employee_answers, a.reviewer_decision, e.content
+       from listing_analyses a
+       join listing_exports e on e.batch_id=$1
+      where a.id=$2`,
+    [batch.rows[0].id, analysis.rows[0].id],
+  );
+  assert.deepEqual(preserved.rows[0].employee_answers, {
+    "q:r2.required": "R2-F3-HISTORY",
+  });
+  assert.equal(preserved.rows[0].reviewer_decision.reason, "Historical decision");
+  assert.equal(preserved.rows[0].content, historicalContent);
+  await assert.rejects(
+    pool.query(
+      "update listing_questions set lifecycle_status='invalid-state' where analysis_id=$1",
+      [analysis.rows[0].id],
+    ),
+    /listing_questions_lifecycle_valid/,
   );
 });
 

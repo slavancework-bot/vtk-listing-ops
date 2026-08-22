@@ -5,18 +5,15 @@
  * Executable deterministic SixBit CSV listing workflow API
  * OpenAPI spec version: 0.3.0
  */
-import * as zod from 'zod';
-
+import * as zod from "zod";
 
 export const HealthCheckResponse = zod.object({
-  "status": zod.string()
-})
-
+  status: zod.string(),
+});
 
 export const ReadinessCheckResponse = zod.object({
-  "status": zod.string()
-})
-
+  status: zod.string(),
+});
 
 export const importBatchBodyImportKeyMax = 200;
 
@@ -24,30 +21,24 @@ export const importBatchBodyFilenameMax = 255;
 
 export const importBatchBodyMimeTypeMax = 100;
 
-
 export const importBatchBodyNameMax = 200;
 
-
-
 export const ImportBatchBody = zod.object({
-  "importKey": zod.string().min(1).max(importBatchBodyImportKeyMax),
-  "filename": zod.string().min(1).max(importBatchBodyFilenameMax),
-  "mimeType": zod.string().min(1).max(importBatchBodyMimeTypeMax),
-  "content": zod.string().min(1),
-  "name": zod.string().min(1).max(importBatchBodyNameMax).optional()
-})
+  importKey: zod.string().min(1).max(importBatchBodyImportKeyMax),
+  filename: zod.string().min(1).max(importBatchBodyFilenameMax),
+  mimeType: zod.string().min(1).max(importBatchBodyMimeTypeMax),
+  content: zod.string().min(1),
+  name: zod.string().min(1).max(importBatchBodyNameMax).optional(),
+});
 
-
-export const importBatchResponseChecksumRegExp = new RegExp('^[a-f0-9]{64}$');
-
+export const importBatchResponseChecksumRegExp = new RegExp("^[a-f0-9]{64}$");
 
 export const ImportBatchResponse = zod.object({
-  "batchId": zod.uuid(),
-  "replayed": zod.boolean(),
-  "itemCount": zod.int().min(1),
-  "checksum": zod.string().regex(importBatchResponseChecksumRegExp)
-})
-
+  batchId: zod.uuid(),
+  replayed: zod.boolean(),
+  itemCount: zod.int().min(1),
+  checksum: zod.string().regex(importBatchResponseChecksumRegExp),
+});
 
 export const listBatchesResponseBatchesItemProgressTotalItemCountMin = 0;
 
@@ -62,29 +53,41 @@ export const listBatchesResponseBatchesItemProgressPendingCountMin = 0;
 export const listBatchesResponseBatchesItemProgressPercentMin = 0;
 export const listBatchesResponseBatchesItemProgressPercentMax = 100;
 
-
-
 export const ListBatchesResponse = zod.object({
-  "batches": zod.array(zod.object({
-  "id": zod.uuid(),
-  "name": zod.string(),
-  "status": zod.string(),
-  "progress": zod.object({
-  "totalItemCount": zod.int().min(listBatchesResponseBatchesItemProgressTotalItemCountMin),
-  "completedCount": zod.int().min(listBatchesResponseBatchesItemProgressCompletedCountMin),
-  "reviewCount": zod.int().min(listBatchesResponseBatchesItemProgressReviewCountMin),
-  "processedCount": zod.int().min(listBatchesResponseBatchesItemProgressProcessedCountMin),
-  "pendingCount": zod.int().min(listBatchesResponseBatchesItemProgressPendingCountMin),
-  "percent": zod.int().min(listBatchesResponseBatchesItemProgressPercentMin).max(listBatchesResponseBatchesItemProgressPercentMax),
-  "complete": zod.boolean()
-})
-}))
-})
-
+  batches: zod.array(
+    zod.object({
+      id: zod.uuid(),
+      name: zod.string(),
+      status: zod.string(),
+      progress: zod.object({
+        totalItemCount: zod
+          .int()
+          .min(listBatchesResponseBatchesItemProgressTotalItemCountMin),
+        completedCount: zod
+          .int()
+          .min(listBatchesResponseBatchesItemProgressCompletedCountMin),
+        reviewCount: zod
+          .int()
+          .min(listBatchesResponseBatchesItemProgressReviewCountMin),
+        processedCount: zod
+          .int()
+          .min(listBatchesResponseBatchesItemProgressProcessedCountMin),
+        pendingCount: zod
+          .int()
+          .min(listBatchesResponseBatchesItemProgressPendingCountMin),
+        percent: zod
+          .int()
+          .min(listBatchesResponseBatchesItemProgressPercentMin)
+          .max(listBatchesResponseBatchesItemProgressPercentMax),
+        complete: zod.boolean(),
+      }),
+    }),
+  ),
+});
 
 export const GetBatchParams = zod.object({
-  "batchId": zod.uuid()
-})
+  batchId: zod.uuid(),
+});
 
 export const getBatchResponseProgressTotalItemCountMin = 0;
 
@@ -99,27 +102,27 @@ export const getBatchResponseProgressPendingCountMin = 0;
 export const getBatchResponseProgressPercentMin = 0;
 export const getBatchResponseProgressPercentMax = 100;
 
-
-
 export const GetBatchResponse = zod.object({
-  "id": zod.uuid(),
-  "name": zod.string(),
-  "status": zod.string(),
-  "progress": zod.object({
-  "totalItemCount": zod.int().min(getBatchResponseProgressTotalItemCountMin),
-  "completedCount": zod.int().min(getBatchResponseProgressCompletedCountMin),
-  "reviewCount": zod.int().min(getBatchResponseProgressReviewCountMin),
-  "processedCount": zod.int().min(getBatchResponseProgressProcessedCountMin),
-  "pendingCount": zod.int().min(getBatchResponseProgressPendingCountMin),
-  "percent": zod.int().min(getBatchResponseProgressPercentMin).max(getBatchResponseProgressPercentMax),
-  "complete": zod.boolean()
-})
-})
-
+  id: zod.uuid(),
+  name: zod.string(),
+  status: zod.string(),
+  progress: zod.object({
+    totalItemCount: zod.int().min(getBatchResponseProgressTotalItemCountMin),
+    completedCount: zod.int().min(getBatchResponseProgressCompletedCountMin),
+    reviewCount: zod.int().min(getBatchResponseProgressReviewCountMin),
+    processedCount: zod.int().min(getBatchResponseProgressProcessedCountMin),
+    pendingCount: zod.int().min(getBatchResponseProgressPendingCountMin),
+    percent: zod
+      .int()
+      .min(getBatchResponseProgressPercentMin)
+      .max(getBatchResponseProgressPercentMax),
+    complete: zod.boolean(),
+  }),
+});
 
 export const GetBatchProgressParams = zod.object({
-  "batchId": zod.uuid()
-})
+  batchId: zod.uuid(),
+});
 
 export const getBatchProgressResponseTotalItemCountMin = 0;
 
@@ -134,269 +137,329 @@ export const getBatchProgressResponsePendingCountMin = 0;
 export const getBatchProgressResponsePercentMin = 0;
 export const getBatchProgressResponsePercentMax = 100;
 
-
-
 export const GetBatchProgressResponse = zod.object({
-  "totalItemCount": zod.int().min(getBatchProgressResponseTotalItemCountMin),
-  "completedCount": zod.int().min(getBatchProgressResponseCompletedCountMin),
-  "reviewCount": zod.int().min(getBatchProgressResponseReviewCountMin),
-  "processedCount": zod.int().min(getBatchProgressResponseProcessedCountMin),
-  "pendingCount": zod.int().min(getBatchProgressResponsePendingCountMin),
-  "percent": zod.int().min(getBatchProgressResponsePercentMin).max(getBatchProgressResponsePercentMax),
-  "complete": zod.boolean()
-})
-
+  totalItemCount: zod.int().min(getBatchProgressResponseTotalItemCountMin),
+  completedCount: zod.int().min(getBatchProgressResponseCompletedCountMin),
+  reviewCount: zod.int().min(getBatchProgressResponseReviewCountMin),
+  processedCount: zod.int().min(getBatchProgressResponseProcessedCountMin),
+  pendingCount: zod.int().min(getBatchProgressResponsePendingCountMin),
+  percent: zod
+    .int()
+    .min(getBatchProgressResponsePercentMin)
+    .max(getBatchProgressResponsePercentMax),
+  complete: zod.boolean(),
+});
 
 export const ListBatchItemsParams = zod.object({
-  "batchId": zod.uuid()
-})
-
+  batchId: zod.uuid(),
+});
 
 export const listBatchItemsResponseItemsItemDraftVersionMin = 0;
 
-
-
-
-
 export const ListBatchItemsResponse = zod.object({
-  "items": zod.array(zod.object({
-  "id": zod.uuid(),
-  "batchId": zod.uuid(),
-  "sku": zod.string(),
-  "status": zod.string(),
-  "version": zod.int().min(1),
-  "draftVersion": zod.int().min(listBatchItemsResponseItemsItemDraftVersionMin),
-  "draft": zod.union([zod.object({
-  "itemId": zod.uuid(),
-  "itemVersion": zod.int().min(1),
-  "includedItems": zod.object({
-  "selectedQuestionIds": zod.array(zod.string()),
-  "explicitlyNone": zod.boolean()
-}),
-  "conditionCode": zod.union([zod.enum(['A', 'B', 'C', 'D']),zod.null()]),
-  "fieldValues": zod.record(zod.string(), zod.union([zod.string(),zod.number(),zod.boolean(),zod.null()])),
-  "notes": zod.string(),
-  "employeeId": zod.string().min(1),
-  "status": zod.enum(['new', 'editing', 'restored', 'submitted', 'needs_review']),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-}),zod.null()]).optional()
-}))
-})
-
+  items: zod.array(
+    zod.object({
+      id: zod.uuid(),
+      batchId: zod.uuid(),
+      sku: zod.string(),
+      status: zod.string(),
+      version: zod.int().min(1),
+      draftVersion: zod
+        .int()
+        .min(listBatchItemsResponseItemsItemDraftVersionMin),
+      draft: zod
+        .union([
+          zod.object({
+            itemId: zod.uuid(),
+            itemVersion: zod.int().min(1),
+            includedItems: zod.object({
+              selectedQuestionIds: zod.array(zod.string()),
+              explicitlyNone: zod.boolean(),
+            }),
+            conditionCode: zod.union([
+              zod.enum(["A", "B", "C", "D"]),
+              zod.null(),
+            ]),
+            fieldValues: zod.record(
+              zod.string(),
+              zod.union([
+                zod.string(),
+                zod.number(),
+                zod.boolean(),
+                zod.null(),
+              ]),
+            ),
+            notes: zod.string(),
+            employeeId: zod.string().min(1),
+            status: zod.enum([
+              "new",
+              "editing",
+              "restored",
+              "submitted",
+              "needs_review",
+            ]),
+            createdAt: zod.coerce.date(),
+            updatedAt: zod.coerce.date(),
+          }),
+          zod.null(),
+        ])
+        .optional(),
+    }),
+  ),
+});
 
 export const GetNextPendingItemParams = zod.object({
-  "batchId": zod.uuid()
-})
-
+  batchId: zod.uuid(),
+});
 
 export const getNextPendingItemResponseItemOneDraftVersionMin = 0;
 
-
-
-
-
 export const GetNextPendingItemResponse = zod.object({
-  "item": zod.union([zod.object({
-  "id": zod.uuid(),
-  "batchId": zod.uuid(),
-  "sku": zod.string(),
-  "status": zod.string(),
-  "version": zod.int().min(1),
-  "draftVersion": zod.int().min(getNextPendingItemResponseItemOneDraftVersionMin),
-  "draft": zod.union([zod.object({
-  "itemId": zod.uuid(),
-  "itemVersion": zod.int().min(1),
-  "includedItems": zod.object({
-  "selectedQuestionIds": zod.array(zod.string()),
-  "explicitlyNone": zod.boolean()
-}),
-  "conditionCode": zod.union([zod.enum(['A', 'B', 'C', 'D']),zod.null()]),
-  "fieldValues": zod.record(zod.string(), zod.union([zod.string(),zod.number(),zod.boolean(),zod.null()])),
-  "notes": zod.string(),
-  "employeeId": zod.string().min(1),
-  "status": zod.enum(['new', 'editing', 'restored', 'submitted', 'needs_review']),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-}),zod.null()]).optional()
-}),zod.null()])
-})
-
+  item: zod.union([
+    zod.object({
+      id: zod.uuid(),
+      batchId: zod.uuid(),
+      sku: zod.string(),
+      status: zod.string(),
+      version: zod.int().min(1),
+      draftVersion: zod
+        .int()
+        .min(getNextPendingItemResponseItemOneDraftVersionMin),
+      draft: zod
+        .union([
+          zod.object({
+            itemId: zod.uuid(),
+            itemVersion: zod.int().min(1),
+            includedItems: zod.object({
+              selectedQuestionIds: zod.array(zod.string()),
+              explicitlyNone: zod.boolean(),
+            }),
+            conditionCode: zod.union([
+              zod.enum(["A", "B", "C", "D"]),
+              zod.null(),
+            ]),
+            fieldValues: zod.record(
+              zod.string(),
+              zod.union([
+                zod.string(),
+                zod.number(),
+                zod.boolean(),
+                zod.null(),
+              ]),
+            ),
+            notes: zod.string(),
+            employeeId: zod.string().min(1),
+            status: zod.enum([
+              "new",
+              "editing",
+              "restored",
+              "submitted",
+              "needs_review",
+            ]),
+            createdAt: zod.coerce.date(),
+            updatedAt: zod.coerce.date(),
+          }),
+          zod.null(),
+        ])
+        .optional(),
+    }),
+    zod.null(),
+  ]),
+});
 
 export const GetItemParams = zod.object({
-  "itemId": zod.uuid()
-})
-
+  itemId: zod.uuid(),
+});
 
 export const getItemResponseDraftVersionMin = 0;
 
-
-
-
-
 export const GetItemResponse = zod.object({
-  "id": zod.uuid(),
-  "batchId": zod.uuid(),
-  "sku": zod.string(),
-  "status": zod.string(),
-  "version": zod.int().min(1),
-  "draftVersion": zod.int().min(getItemResponseDraftVersionMin),
-  "draft": zod.union([zod.object({
-  "itemId": zod.uuid(),
-  "itemVersion": zod.int().min(1),
-  "includedItems": zod.object({
-  "selectedQuestionIds": zod.array(zod.string()),
-  "explicitlyNone": zod.boolean()
-}),
-  "conditionCode": zod.union([zod.enum(['A', 'B', 'C', 'D']),zod.null()]),
-  "fieldValues": zod.record(zod.string(), zod.union([zod.string(),zod.number(),zod.boolean(),zod.null()])),
-  "notes": zod.string(),
-  "employeeId": zod.string().min(1),
-  "status": zod.enum(['new', 'editing', 'restored', 'submitted', 'needs_review']),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-}),zod.null()]).optional()
-})
-
+  id: zod.uuid(),
+  batchId: zod.uuid(),
+  sku: zod.string(),
+  status: zod.string(),
+  version: zod.int().min(1),
+  draftVersion: zod.int().min(getItemResponseDraftVersionMin),
+  draft: zod
+    .union([
+      zod.object({
+        itemId: zod.uuid(),
+        itemVersion: zod.int().min(1),
+        includedItems: zod.object({
+          selectedQuestionIds: zod.array(zod.string()),
+          explicitlyNone: zod.boolean(),
+        }),
+        conditionCode: zod.union([zod.enum(["A", "B", "C", "D"]), zod.null()]),
+        fieldValues: zod.record(
+          zod.string(),
+          zod.union([zod.string(), zod.number(), zod.boolean(), zod.null()]),
+        ),
+        notes: zod.string(),
+        employeeId: zod.string().min(1),
+        status: zod.enum([
+          "new",
+          "editing",
+          "restored",
+          "submitted",
+          "needs_review",
+        ]),
+        createdAt: zod.coerce.date(),
+        updatedAt: zod.coerce.date(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+});
 
 export const SaveItemDraftParams = zod.object({
-  "itemId": zod.uuid()
-})
-
-
+  itemId: zod.uuid(),
+});
 
 export const saveItemDraftBodyExpectedDraftVersionMin = 0;
 
-
-
 export const SaveItemDraftBody = zod.object({
-  "draft": zod.object({
-  "itemId": zod.uuid(),
-  "itemVersion": zod.int().min(1),
-  "includedItems": zod.object({
-  "selectedQuestionIds": zod.array(zod.string()),
-  "explicitlyNone": zod.boolean()
-}),
-  "conditionCode": zod.union([zod.enum(['A', 'B', 'C', 'D']),zod.null()]),
-  "fieldValues": zod.record(zod.string(), zod.union([zod.string(),zod.number(),zod.boolean(),zod.null()])),
-  "notes": zod.string(),
-  "employeeId": zod.string().min(1),
-  "status": zod.enum(['new', 'editing', 'restored', 'submitted', 'needs_review']),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-}),
-  "expectedDraftVersion": zod.int().min(saveItemDraftBodyExpectedDraftVersionMin)
-})
-
-
-
-
+  draft: zod.object({
+    itemId: zod.uuid(),
+    itemVersion: zod.int().min(1),
+    includedItems: zod.object({
+      selectedQuestionIds: zod.array(zod.string()),
+      explicitlyNone: zod.boolean(),
+    }),
+    conditionCode: zod.union([zod.enum(["A", "B", "C", "D"]), zod.null()]),
+    fieldValues: zod.record(
+      zod.string(),
+      zod.union([zod.string(), zod.number(), zod.boolean(), zod.null()]),
+    ),
+    notes: zod.string(),
+    employeeId: zod.string().min(1),
+    status: zod.enum([
+      "new",
+      "editing",
+      "restored",
+      "submitted",
+      "needs_review",
+    ]),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  expectedDraftVersion: zod.int().min(saveItemDraftBodyExpectedDraftVersionMin),
+});
 
 export const SaveItemDraftResponse = zod.object({
-  "itemId": zod.uuid(),
-  "itemVersion": zod.int().min(1),
-  "draftVersion": zod.int().min(1),
-  "status": zod.enum(['editing'])
-})
-
+  itemId: zod.uuid(),
+  itemVersion: zod.int().min(1),
+  draftVersion: zod.int().min(1),
+  status: zod.enum(["editing"]),
+});
 
 export const SaveItemAnswerParams = zod.object({
-  "itemId": zod.uuid()
-})
+  itemId: zod.uuid(),
+});
 
 export const saveItemAnswerHeaderIdempotencyKeyMax = 200;
 
-
-
 export const SaveItemAnswerHeader = zod.object({
-  "Idempotency-Key": zod.string().min(1).max(saveItemAnswerHeaderIdempotencyKeyMax)
-})
-
-
-
-
+  "Idempotency-Key": zod
+    .string()
+    .min(1)
+    .max(saveItemAnswerHeaderIdempotencyKeyMax),
+});
 
 export const SaveItemAnswerBody = zod.object({
-  "draft": zod.object({
-  "itemId": zod.uuid(),
-  "itemVersion": zod.int().min(1),
-  "includedItems": zod.object({
-  "selectedQuestionIds": zod.array(zod.string()),
-  "explicitlyNone": zod.boolean()
-}),
-  "conditionCode": zod.union([zod.enum(['A', 'B', 'C', 'D']),zod.null()]),
-  "fieldValues": zod.record(zod.string(), zod.union([zod.string(),zod.number(),zod.boolean(),zod.null()])),
-  "notes": zod.string(),
-  "employeeId": zod.string().min(1),
-  "status": zod.enum(['new', 'editing', 'restored', 'submitted', 'needs_review']),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-})
-})
-
-
-
+  draft: zod.object({
+    itemId: zod.uuid(),
+    itemVersion: zod.int().min(1),
+    includedItems: zod.object({
+      selectedQuestionIds: zod.array(zod.string()),
+      explicitlyNone: zod.boolean(),
+    }),
+    conditionCode: zod.union([zod.enum(["A", "B", "C", "D"]), zod.null()]),
+    fieldValues: zod.record(
+      zod.string(),
+      zod.union([zod.string(), zod.number(), zod.boolean(), zod.null()]),
+    ),
+    notes: zod.string(),
+    employeeId: zod.string().min(1),
+    status: zod.enum([
+      "new",
+      "editing",
+      "restored",
+      "submitted",
+      "needs_review",
+    ]),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+});
 
 export const SaveItemAnswerResponse = zod.object({
-  "itemId": zod.uuid(),
-  "itemVersion": zod.int().min(1),
-  "status": zod.enum(['completed', 'needs_review']),
-  "nextItemId": zod.union([zod.uuid(),zod.null()]),
-  "replayed": zod.boolean()
-})
-
+  itemId: zod.uuid(),
+  itemVersion: zod.int().min(1),
+  status: zod.enum(["completed", "needs_review"]),
+  nextItemId: zod.union([zod.uuid(), zod.null()]),
+  replayed: zod.boolean(),
+});
 
 export const MarkItemNeedsReviewParams = zod.object({
-  "itemId": zod.uuid()
-})
+  itemId: zod.uuid(),
+});
 
 export const markItemNeedsReviewHeaderIdempotencyKeyMax = 200;
 
-
-
 export const MarkItemNeedsReviewHeader = zod.object({
-  "Idempotency-Key": zod.string().min(1).max(markItemNeedsReviewHeaderIdempotencyKeyMax)
-})
-
-
+  "Idempotency-Key": zod
+    .string()
+    .min(1)
+    .max(markItemNeedsReviewHeaderIdempotencyKeyMax),
+});
 
 export const markItemNeedsReviewBodyReasonNoteMax = 2000;
 
-
-
 export const MarkItemNeedsReviewBody = zod.object({
-  "draft": zod.object({
-  "itemId": zod.uuid(),
-  "itemVersion": zod.int().min(1),
-  "includedItems": zod.object({
-  "selectedQuestionIds": zod.array(zod.string()),
-  "explicitlyNone": zod.boolean()
-}),
-  "conditionCode": zod.union([zod.enum(['A', 'B', 'C', 'D']),zod.null()]),
-  "fieldValues": zod.record(zod.string(), zod.union([zod.string(),zod.number(),zod.boolean(),zod.null()])),
-  "notes": zod.string(),
-  "employeeId": zod.string().min(1),
-  "status": zod.enum(['new', 'editing', 'restored', 'submitted', 'needs_review']),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-}),
-  "reason": zod.object({
-  "code": zod.enum(['inventory_discrepancy', 'item_damage', 'identity_uncertain', 'missing_information', 'workflow_exception', 'other']),
-  "note": zod.string().max(markItemNeedsReviewBodyReasonNoteMax).optional()
-})
-})
-
-
-
+  draft: zod.object({
+    itemId: zod.uuid(),
+    itemVersion: zod.int().min(1),
+    includedItems: zod.object({
+      selectedQuestionIds: zod.array(zod.string()),
+      explicitlyNone: zod.boolean(),
+    }),
+    conditionCode: zod.union([zod.enum(["A", "B", "C", "D"]), zod.null()]),
+    fieldValues: zod.record(
+      zod.string(),
+      zod.union([zod.string(), zod.number(), zod.boolean(), zod.null()]),
+    ),
+    notes: zod.string(),
+    employeeId: zod.string().min(1),
+    status: zod.enum([
+      "new",
+      "editing",
+      "restored",
+      "submitted",
+      "needs_review",
+    ]),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  reason: zod.object({
+    code: zod.enum([
+      "inventory_discrepancy",
+      "item_damage",
+      "identity_uncertain",
+      "missing_information",
+      "workflow_exception",
+      "other",
+    ]),
+    note: zod.string().max(markItemNeedsReviewBodyReasonNoteMax).optional(),
+  }),
+});
 
 export const MarkItemNeedsReviewResponse = zod.object({
-  "itemId": zod.uuid(),
-  "itemVersion": zod.int().min(1),
-  "status": zod.enum(['completed', 'needs_review']),
-  "nextItemId": zod.union([zod.uuid(),zod.null()]),
-  "replayed": zod.boolean()
-})
-
+  itemId: zod.uuid(),
+  itemVersion: zod.int().min(1),
+  status: zod.enum(["completed", "needs_review"]),
+  nextItemId: zod.union([zod.uuid(), zod.null()]),
+  replayed: zod.boolean(),
+});
 
 export const importPhase3BatchBodyImportKeyMax = 200;
 
@@ -404,105 +467,645 @@ export const importPhase3BatchBodyFilenameMax = 255;
 
 export const importPhase3BatchBodyMimeTypeMax = 100;
 
-
 export const importPhase3BatchBodyNameMax = 200;
 
-
-
 export const ImportPhase3BatchBody = zod.object({
-  "importKey": zod.string().min(1).max(importPhase3BatchBodyImportKeyMax),
-  "filename": zod.string().min(1).max(importPhase3BatchBodyFilenameMax),
-  "mimeType": zod.string().min(1).max(importPhase3BatchBodyMimeTypeMax),
-  "content": zod.string().min(1),
-  "name": zod.string().min(1).max(importPhase3BatchBodyNameMax).optional()
-})
-
-
-
+  importKey: zod.string().min(1).max(importPhase3BatchBodyImportKeyMax),
+  filename: zod.string().min(1).max(importPhase3BatchBodyFilenameMax),
+  mimeType: zod.string().min(1).max(importPhase3BatchBodyMimeTypeMax),
+  content: zod.string().min(1),
+  name: zod.string().min(1).max(importPhase3BatchBodyNameMax).optional(),
+});
 
 export const ImportPhase3BatchResponse = zod.object({
-  "batchId": zod.uuid(),
-  "replayed": zod.boolean(),
-  "itemCount": zod.int().min(1),
-  "checksum": zod.string(),
-  "schemaVersion": zod.string()
-})
-
+  batchId: zod.uuid(),
+  replayed: zod.boolean(),
+  itemCount: zod.int().min(1),
+  checksum: zod.string(),
+  schemaVersion: zod.string(),
+});
 
 export const AnalyzePhase3BatchParams = zod.object({
-  "batchId": zod.uuid()
-})
+  batchId: zod.uuid(),
+});
 
 export const AnalyzePhase3BatchResponse = zod.object({
-  "batchId": zod.uuid(),
-  "ruleVersion": zod.string(),
-  "total": zod.int(),
-  "pass": zod.int(),
-  "verify": zod.int(),
-  "exportReady": zod.int()
-})
+  batchId: zod.uuid(),
+  ruleVersion: zod.string(),
+  total: zod.int(),
+  pass: zod.int(),
+  verify: zod.int(),
+  exportReady: zod.int(),
+});
 
+export const GetPhase3BatchWorkParams = zod.object({
+  batchId: zod.uuid(),
+});
+
+export const getPhase3BatchWorkQueryOffsetDefault = 0;
+export const getPhase3BatchWorkQueryOffsetMin = 0;
+
+export const getPhase3BatchWorkQueryLimitDefault = 100;
+export const getPhase3BatchWorkQueryLimitMax = 200;
+
+export const GetPhase3BatchWorkQueryParams = zod.object({
+  offset: zod.coerce
+    .number()
+    .int()
+    .min(getPhase3BatchWorkQueryOffsetMin)
+    .default(getPhase3BatchWorkQueryOffsetDefault),
+  limit: zod.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(getPhase3BatchWorkQueryLimitMax)
+    .default(getPhase3BatchWorkQueryLimitDefault),
+});
+
+export const getPhase3BatchWorkResponseResultsItemItemDraftVersionMin = 0;
+
+export const getPhase3BatchWorkResponseResultsItemResultResultsItemCurrentValueOneMax = 2000;
+
+export const getPhase3BatchWorkResponseResultsItemResultResultsItemSafeRepairBeforeOneMax = 2000;
+
+export const getPhase3BatchWorkResponseResultsItemResultResultsItemSafeRepairAfterOneMax = 2000;
+
+export const getPhase3BatchWorkResponseResultsItemResultRepairsItemBeforeOneMax = 2000;
+
+export const getPhase3BatchWorkResponseResultsItemResultRepairsItemAfterOneMax = 2000;
+
+export const getPhase3BatchWorkResponseResultsItemResultEmployeeAnswersOneMax = 2000;
+
+export const getPhase3BatchWorkResponseResultsItemResultReviewerDecisionOneReasonMax = 2000;
+
+export const getPhase3BatchWorkResponseResultsItemResultReviewerDecisionOneEvidenceMaxOne = 2000;
+
+export const getPhase3BatchWorkResponseResultsItemResultQuestionsItemConfigurationMinLengthMin = 0;
+
+export const getPhase3BatchWorkResponseResultsItemResultQuestionsItemAnswerOneValueOneMax = 2000;
+
+export const GetPhase3BatchWorkResponse = zod.object({
+  batchId: zod.uuid(),
+  offset: zod.int(),
+  limit: zod.int(),
+  results: zod.array(
+    zod.object({
+      item: zod.object({
+        id: zod.uuid(),
+        batchId: zod.uuid(),
+        sku: zod.string(),
+        status: zod.string(),
+        version: zod.int().min(1),
+        draftVersion: zod
+          .int()
+          .min(getPhase3BatchWorkResponseResultsItemItemDraftVersionMin),
+        draft: zod
+          .union([
+            zod.object({
+              itemId: zod.uuid(),
+              itemVersion: zod.int().min(1),
+              includedItems: zod.object({
+                selectedQuestionIds: zod.array(zod.string()),
+                explicitlyNone: zod.boolean(),
+              }),
+              conditionCode: zod.union([
+                zod.enum(["A", "B", "C", "D"]),
+                zod.null(),
+              ]),
+              fieldValues: zod.record(
+                zod.string(),
+                zod.union([
+                  zod.string(),
+                  zod.number(),
+                  zod.boolean(),
+                  zod.null(),
+                ]),
+              ),
+              notes: zod.string(),
+              employeeId: zod.string().min(1),
+              status: zod.enum([
+                "new",
+                "editing",
+                "restored",
+                "submitted",
+                "needs_review",
+              ]),
+              createdAt: zod.coerce.date(),
+              updatedAt: zod.coerce.date(),
+            }),
+            zod.null(),
+          ])
+          .optional(),
+      }),
+      result: zod.object({
+        id: zod.uuid(),
+        itemId: zod.uuid(),
+        ruleVersion: zod.string(),
+        normalizedValues: zod.object({
+          sourceDatabase: zod.string(),
+          itemId: zod.string(),
+          inventoryId: zod.string(),
+          sku: zod.string(),
+          title: zod.string(),
+          description: zod.string(),
+          storageLocation: zod.string(),
+          qtyToList: zod.union([zod.int(), zod.null()]),
+          qtyUncommitted: zod.union([zod.int(), zod.null()]),
+          qtyCurrentlyListed: zod.union([zod.int(), zod.null()]),
+          qtySold: zod.union([zod.int(), zod.null()]),
+          stockTotal: zod.union([zod.int(), zod.null()]),
+          fixedPrice: zod.string(),
+          itemStatus: zod.string(),
+          itemStatusId: zod.string(),
+          condition: zod.string(),
+          r2Code: zod.string(),
+          checkCount: zod.union([zod.boolean(), zod.null()]),
+          cfCheck: zod.string(),
+          lotSize: zod.union([zod.int(), zod.null()]),
+          totalPieces: zod.union([zod.int(), zod.null()]),
+          priceEachPiece: zod.union([zod.number(), zod.null()]),
+        }),
+        results: zod.array(
+          zod.object({
+            ruleId: zod.string(),
+            ruleVersion: zod.string(),
+            category: zod.string(),
+            outcome: zod.enum([
+              "PASS",
+              "FAIL",
+              "VERIFY",
+              "PASS_EMPLOYEE_VERIFIED",
+            ]),
+            severity: zod.enum(["info", "warning", "error"]),
+            field: zod.union([zod.string(), zod.null()]),
+            currentValue: zod.union([
+              zod
+                .string()
+                .max(
+                  getPhase3BatchWorkResponseResultsItemResultResultsItemCurrentValueOneMax,
+                ),
+              zod.number(),
+              zod.boolean(),
+              zod.null(),
+            ]),
+            reason: zod.string(),
+            employeeRequired: zod.boolean(),
+            reviewerRequired: zod.boolean(),
+            resolutionClass: zod
+              .enum([
+                "EMPLOYEE_RESOLVABLE",
+                "REVIEWER_RESOLVABLE",
+                "NON_OVERRIDABLE_HARD_INVALID",
+              ])
+              .optional(),
+            safeRepair: zod
+              .object({
+                field: zod.string(),
+                before: zod.union([
+                  zod
+                    .string()
+                    .max(
+                      getPhase3BatchWorkResponseResultsItemResultResultsItemSafeRepairBeforeOneMax,
+                    ),
+                  zod.number(),
+                  zod.boolean(),
+                  zod.null(),
+                ]),
+                after: zod.union([
+                  zod
+                    .string()
+                    .max(
+                      getPhase3BatchWorkResponseResultsItemResultResultsItemSafeRepairAfterOneMax,
+                    ),
+                  zod.number(),
+                  zod.boolean(),
+                  zod.null(),
+                ]),
+                reason: zod.string(),
+                algorithmVersion: zod.string(),
+              })
+              .optional(),
+          }),
+        ),
+        repairs: zod.array(
+          zod.object({
+            field: zod.string(),
+            before: zod.union([
+              zod
+                .string()
+                .max(
+                  getPhase3BatchWorkResponseResultsItemResultRepairsItemBeforeOneMax,
+                ),
+              zod.number(),
+              zod.boolean(),
+              zod.null(),
+            ]),
+            after: zod.union([
+              zod
+                .string()
+                .max(
+                  getPhase3BatchWorkResponseResultsItemResultRepairsItemAfterOneMax,
+                ),
+              zod.number(),
+              zod.boolean(),
+              zod.null(),
+            ]),
+            reason: zod.string(),
+            algorithmVersion: zod.string(),
+          }),
+        ),
+        employeeAnswers: zod.record(
+          zod.string(),
+          zod.union([
+            zod
+              .string()
+              .max(
+                getPhase3BatchWorkResponseResultsItemResultEmployeeAnswersOneMax,
+              ),
+            zod.number(),
+            zod.boolean(),
+            zod.null(),
+          ]),
+        ),
+        reviewerDecision: zod
+          .union([
+            zod.object({
+              status: zod.enum(["approved", "unresolved"]),
+              reason: zod
+                .string()
+                .min(1)
+                .max(
+                  getPhase3BatchWorkResponseResultsItemResultReviewerDecisionOneReasonMax,
+                ),
+              analysisVersion: zod.int().min(1),
+              resolvedRuleIds: zod.array(zod.string()),
+              evidence: zod.record(
+                zod.string(),
+                zod
+                  .string()
+                  .min(1)
+                  .max(
+                    getPhase3BatchWorkResponseResultsItemResultReviewerDecisionOneEvidenceMaxOne,
+                  ),
+              ),
+            }),
+            zod.null(),
+          ])
+          .optional(),
+        exportReady: zod.boolean(),
+        version: zod.int().min(1),
+        createdAt: zod.coerce.date(),
+        updatedAt: zod.coerce.date(),
+        questions: zod.array(
+          zod.object({
+            id: zod.string(),
+            itemId: zod.uuid(),
+            analysisId: zod.uuid(),
+            ruleVersion: zod.string(),
+            ruleId: zod.string(),
+            displayOrder: zod.int(),
+            lifecycleStatus: zod.enum([
+              "active",
+              "answered",
+              "resolved",
+              "superseded",
+            ]),
+            configuration: zod.object({
+              id: zod.string(),
+              ruleId: zod.string(),
+              type: zod.enum(["boolean", "number", "text", "select"]),
+              label: zod.string(),
+              required: zod.literal(true),
+              displayOrder: zod.int(),
+              shortcutPosition: zod.int().optional(),
+              options: zod.array(zod.string()).min(1).optional(),
+              min: zod.number().optional(),
+              max: zod.number().optional(),
+              minLength: zod
+                .int()
+                .min(
+                  getPhase3BatchWorkResponseResultsItemResultQuestionsItemConfigurationMinLengthMin,
+                )
+                .optional(),
+              maxLength: zod.int().min(1).optional(),
+            }),
+            answer: zod
+              .union([
+                zod.object({
+                  value: zod.union([
+                    zod
+                      .string()
+                      .max(
+                        getPhase3BatchWorkResponseResultsItemResultQuestionsItemAnswerOneValueOneMax,
+                      ),
+                    zod.number(),
+                    zod.boolean(),
+                    zod.null(),
+                  ]),
+                }),
+                zod.null(),
+              ])
+              .optional(),
+            answeredBy: zod.union([zod.string(), zod.null()]).optional(),
+            answeredAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+            createdAt: zod.coerce.date(),
+          }),
+        ),
+      }),
+    }),
+  ),
+});
 
 export const GetPhase3ResultsParams = zod.object({
-  "itemId": zod.uuid()
-})
+  itemId: zod.uuid(),
+});
 
-export const GetPhase3ResultsResponse = zod.record(zod.string(), zod.unknown())
+export const getPhase3ResultsResponseResultsItemCurrentValueOneMax = 2000;
 
+export const getPhase3ResultsResponseResultsItemSafeRepairBeforeOneMax = 2000;
+
+export const getPhase3ResultsResponseResultsItemSafeRepairAfterOneMax = 2000;
+
+export const getPhase3ResultsResponseRepairsItemBeforeOneMax = 2000;
+
+export const getPhase3ResultsResponseRepairsItemAfterOneMax = 2000;
+
+export const getPhase3ResultsResponseEmployeeAnswersOneMax = 2000;
+
+export const getPhase3ResultsResponseReviewerDecisionOneReasonMax = 2000;
+
+export const getPhase3ResultsResponseReviewerDecisionOneEvidenceMaxOne = 2000;
+
+export const getPhase3ResultsResponseQuestionsItemConfigurationMinLengthMin = 0;
+
+export const getPhase3ResultsResponseQuestionsItemAnswerOneValueOneMax = 2000;
+
+export const GetPhase3ResultsResponse = zod.object({
+  id: zod.uuid(),
+  itemId: zod.uuid(),
+  ruleVersion: zod.string(),
+  normalizedValues: zod.object({
+    sourceDatabase: zod.string(),
+    itemId: zod.string(),
+    inventoryId: zod.string(),
+    sku: zod.string(),
+    title: zod.string(),
+    description: zod.string(),
+    storageLocation: zod.string(),
+    qtyToList: zod.union([zod.int(), zod.null()]),
+    qtyUncommitted: zod.union([zod.int(), zod.null()]),
+    qtyCurrentlyListed: zod.union([zod.int(), zod.null()]),
+    qtySold: zod.union([zod.int(), zod.null()]),
+    stockTotal: zod.union([zod.int(), zod.null()]),
+    fixedPrice: zod.string(),
+    itemStatus: zod.string(),
+    itemStatusId: zod.string(),
+    condition: zod.string(),
+    r2Code: zod.string(),
+    checkCount: zod.union([zod.boolean(), zod.null()]),
+    cfCheck: zod.string(),
+    lotSize: zod.union([zod.int(), zod.null()]),
+    totalPieces: zod.union([zod.int(), zod.null()]),
+    priceEachPiece: zod.union([zod.number(), zod.null()]),
+  }),
+  results: zod.array(
+    zod.object({
+      ruleId: zod.string(),
+      ruleVersion: zod.string(),
+      category: zod.string(),
+      outcome: zod.enum(["PASS", "FAIL", "VERIFY", "PASS_EMPLOYEE_VERIFIED"]),
+      severity: zod.enum(["info", "warning", "error"]),
+      field: zod.union([zod.string(), zod.null()]),
+      currentValue: zod.union([
+        zod.string().max(getPhase3ResultsResponseResultsItemCurrentValueOneMax),
+        zod.number(),
+        zod.boolean(),
+        zod.null(),
+      ]),
+      reason: zod.string(),
+      employeeRequired: zod.boolean(),
+      reviewerRequired: zod.boolean(),
+      resolutionClass: zod
+        .enum([
+          "EMPLOYEE_RESOLVABLE",
+          "REVIEWER_RESOLVABLE",
+          "NON_OVERRIDABLE_HARD_INVALID",
+        ])
+        .optional(),
+      safeRepair: zod
+        .object({
+          field: zod.string(),
+          before: zod.union([
+            zod
+              .string()
+              .max(getPhase3ResultsResponseResultsItemSafeRepairBeforeOneMax),
+            zod.number(),
+            zod.boolean(),
+            zod.null(),
+          ]),
+          after: zod.union([
+            zod
+              .string()
+              .max(getPhase3ResultsResponseResultsItemSafeRepairAfterOneMax),
+            zod.number(),
+            zod.boolean(),
+            zod.null(),
+          ]),
+          reason: zod.string(),
+          algorithmVersion: zod.string(),
+        })
+        .optional(),
+    }),
+  ),
+  repairs: zod.array(
+    zod.object({
+      field: zod.string(),
+      before: zod.union([
+        zod.string().max(getPhase3ResultsResponseRepairsItemBeforeOneMax),
+        zod.number(),
+        zod.boolean(),
+        zod.null(),
+      ]),
+      after: zod.union([
+        zod.string().max(getPhase3ResultsResponseRepairsItemAfterOneMax),
+        zod.number(),
+        zod.boolean(),
+        zod.null(),
+      ]),
+      reason: zod.string(),
+      algorithmVersion: zod.string(),
+    }),
+  ),
+  employeeAnswers: zod.record(
+    zod.string(),
+    zod.union([
+      zod.string().max(getPhase3ResultsResponseEmployeeAnswersOneMax),
+      zod.number(),
+      zod.boolean(),
+      zod.null(),
+    ]),
+  ),
+  reviewerDecision: zod
+    .union([
+      zod.object({
+        status: zod.enum(["approved", "unresolved"]),
+        reason: zod
+          .string()
+          .min(1)
+          .max(getPhase3ResultsResponseReviewerDecisionOneReasonMax),
+        analysisVersion: zod.int().min(1),
+        resolvedRuleIds: zod.array(zod.string()),
+        evidence: zod.record(
+          zod.string(),
+          zod
+            .string()
+            .min(1)
+            .max(getPhase3ResultsResponseReviewerDecisionOneEvidenceMaxOne),
+        ),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  exportReady: zod.boolean(),
+  version: zod.int().min(1),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  questions: zod.array(
+    zod.object({
+      id: zod.string(),
+      itemId: zod.uuid(),
+      analysisId: zod.uuid(),
+      ruleVersion: zod.string(),
+      ruleId: zod.string(),
+      displayOrder: zod.int(),
+      lifecycleStatus: zod.enum([
+        "active",
+        "answered",
+        "resolved",
+        "superseded",
+      ]),
+      configuration: zod.object({
+        id: zod.string(),
+        ruleId: zod.string(),
+        type: zod.enum(["boolean", "number", "text", "select"]),
+        label: zod.string(),
+        required: zod.literal(true),
+        displayOrder: zod.int(),
+        shortcutPosition: zod.int().optional(),
+        options: zod.array(zod.string()).min(1).optional(),
+        min: zod.number().optional(),
+        max: zod.number().optional(),
+        minLength: zod
+          .int()
+          .min(getPhase3ResultsResponseQuestionsItemConfigurationMinLengthMin)
+          .optional(),
+        maxLength: zod.int().min(1).optional(),
+      }),
+      answer: zod
+        .union([
+          zod.object({
+            value: zod.union([
+              zod
+                .string()
+                .max(getPhase3ResultsResponseQuestionsItemAnswerOneValueOneMax),
+              zod.number(),
+              zod.boolean(),
+              zod.null(),
+            ]),
+          }),
+          zod.null(),
+        ])
+        .optional(),
+      answeredBy: zod.union([zod.string(), zod.null()]).optional(),
+      answeredAt: zod.union([zod.coerce.date(), zod.null()]).optional(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
 
 export const AnswerPhase3QuestionsParams = zod.object({
-  "itemId": zod.uuid()
-})
+  itemId: zod.uuid(),
+});
 
 export const answerPhase3QuestionsHeaderIdempotencyKeyMax = 200;
 
-
-
 export const AnswerPhase3QuestionsHeader = zod.object({
-  "Idempotency-Key": zod.string().min(1).max(answerPhase3QuestionsHeaderIdempotencyKeyMax)
-})
+  "Idempotency-Key": zod
+    .string()
+    .min(1)
+    .max(answerPhase3QuestionsHeaderIdempotencyKeyMax),
+});
+
+export const answerPhase3QuestionsBodyAnswersOneMax = 2000;
 
 export const AnswerPhase3QuestionsBody = zod.object({
-  "answers": zod.record(zod.string(), zod.unknown())
-})
+  answers: zod.record(
+    zod.string(),
+    zod.union([
+      zod.string().max(answerPhase3QuestionsBodyAnswersOneMax),
+      zod.int(),
+      zod.boolean(),
+    ]),
+  ),
+});
 
-export const AnswerPhase3QuestionsResponse = zod.record(zod.string(), zod.unknown())
-
+export const AnswerPhase3QuestionsResponse = zod.object({
+  itemId: zod.uuid(),
+  replayed: zod.boolean(),
+  exportReady: zod.boolean(),
+});
 
 export const ReviewPhase3ItemParams = zod.object({
-  "itemId": zod.uuid()
-})
+  itemId: zod.uuid(),
+});
 
 export const reviewPhase3ItemHeaderIdempotencyKeyMax = 200;
 
-
-
 export const ReviewPhase3ItemHeader = zod.object({
-  "Idempotency-Key": zod.string().min(1).max(reviewPhase3ItemHeaderIdempotencyKeyMax)
-})
+  "Idempotency-Key": zod
+    .string()
+    .min(1)
+    .max(reviewPhase3ItemHeaderIdempotencyKeyMax),
+});
 
 export const reviewPhase3ItemBodyReasonMax = 2000;
 
-
+export const reviewPhase3ItemBodyEvidenceMaxOne = 2000;
 
 export const ReviewPhase3ItemBody = zod.object({
-  "status": zod.enum(['approved', 'unresolved']),
-  "reason": zod.string().min(1).max(reviewPhase3ItemBodyReasonMax)
-})
+  status: zod.enum(["approved", "unresolved"]),
+  reason: zod.string().min(1).max(reviewPhase3ItemBodyReasonMax),
+  analysisVersion: zod.int().min(1),
+  resolvedRuleIds: zod.array(zod.string()),
+  evidence: zod.record(
+    zod.string(),
+    zod.string().min(1).max(reviewPhase3ItemBodyEvidenceMaxOne),
+  ),
+});
 
-export const ReviewPhase3ItemResponse = zod.record(zod.string(), zod.unknown())
-
+export const ReviewPhase3ItemResponse = zod.object({
+  itemId: zod.uuid(),
+  replayed: zod.boolean(),
+  exportReady: zod.boolean(),
+});
 
 export const ExportPhase3BatchParams = zod.object({
-  "batchId": zod.uuid()
-})
+  batchId: zod.uuid(),
+});
 
 export const ExportPhase3BatchResponse = zod.object({
-  "exportId": zod.uuid(),
-  "checksum": zod.string(),
-  "rowCount": zod.int(),
-  "schemaVersion": zod.string(),
-  "ruleVersion": zod.string(),
-  "content": zod.string(),
-  "fieldDiffs": zod.array(zod.record(zod.string(), zod.unknown()))
-})
+  exportId: zod.uuid(),
+  checksum: zod.string(),
+  rowCount: zod.int(),
+  schemaVersion: zod.string(),
+  ruleVersion: zod.string(),
+  content: zod.string(),
+  fieldDiffs: zod.array(
+    zod.object({
+      itemId: zod.uuid(),
+      field: zod.string().min(1),
+      before: zod.string(),
+      after: zod.string(),
+    }),
+  ),
+});

@@ -6,4 +6,14 @@
  * OpenAPI spec version: 0.3.0
  */
 
-export type Phase3AnswersRequestAnswers = {[key: string]: string | number | boolean};
+export type GetPhase3BatchWorkParams = {
+/**
+ * @minimum 0
+ */
+offset?: number;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: number;
+};

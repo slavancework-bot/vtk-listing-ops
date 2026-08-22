@@ -23,7 +23,13 @@ export interface Phase3AnalysisSummary {
   exportReady: number;
 }
 
-export type Phase3ExportFieldDiffsItem = { [key: string]: unknown };
+export interface Phase3FieldDiff {
+  itemId: string;
+  /** @minLength 1 */
+  field: string;
+  before: string;
+  after: string;
+}
 
 export interface Phase3Export {
   exportId: string;
@@ -32,124 +38,214 @@ export interface Phase3Export {
   schemaVersion: string;
   ruleVersion: string;
   content: string;
-  fieldDiffs: Phase3ExportFieldDiffsItem[];
+  fieldDiffs: Phase3FieldDiff[];
 }
 
-export type Phase3AnswersRequestAnswers = { [key: string]: unknown };
+export type Phase3Primitive = string | number | boolean | null;
 
-export interface Phase3AnswersRequest {
-  answers: Phase3AnswersRequestAnswers;
+export interface Phase3NormalizedValues {
+  sourceDatabase: string;
+  itemId: string;
+  inventoryId: string;
+  sku: string;
+  title: string;
+  description: string;
+  storageLocation: string;
+  qtyToList: number | null;
+  qtyUncommitted: number | null;
+  qtyCurrentlyListed: number | null;
+  qtySold: number | null;
+  stockTotal: number | null;
+  fixedPrice: string;
+  itemStatus: string;
+  itemStatusId: string;
+  condition: string;
+  r2Code: string;
+  checkCount: boolean | null;
+  cfCheck: string;
+  lotSize: number | null;
+  totalPieces: number | null;
+  priceEachPiece: number | null;
 }
 
-export type Phase3ReviewRequestStatus = typeof Phase3ReviewRequestStatus[keyof typeof Phase3ReviewRequestStatus];
+export interface Phase3Repair {
+  field: string;
+  before: Phase3Primitive;
+  after: Phase3Primitive;
+  reason: string;
+  algorithmVersion: string;
+}
 
+export type Phase3RuleResultOutcome =
+  (typeof Phase3RuleResultOutcome)[keyof typeof Phase3RuleResultOutcome];
 
-export const Phase3ReviewRequestStatus = {
-  approved: 'approved',
-  unresolved: 'unresolved',
+export const Phase3RuleResultOutcome = {
+  PASS: "PASS",
+  FAIL: "FAIL",
+  VERIFY: "VERIFY",
+  PASS_EMPLOYEE_VERIFIED: "PASS_EMPLOYEE_VERIFIED",
 } as const;
 
-export interface Phase3ReviewRequest {
-  status: Phase3ReviewRequestStatus;
-  /**
-     * @minLength 1
-     * @maxLength 2000
-     */
+export type Phase3RuleResultSeverity =
+  (typeof Phase3RuleResultSeverity)[keyof typeof Phase3RuleResultSeverity];
+
+export const Phase3RuleResultSeverity = {
+  info: "info",
+  warning: "warning",
+  error: "error",
+} as const;
+
+export type Phase3RuleResultResolutionClass =
+  (typeof Phase3RuleResultResolutionClass)[keyof typeof Phase3RuleResultResolutionClass];
+
+export const Phase3RuleResultResolutionClass = {
+  EMPLOYEE_RESOLVABLE: "EMPLOYEE_RESOLVABLE",
+  REVIEWER_RESOLVABLE: "REVIEWER_RESOLVABLE",
+  NON_OVERRIDABLE_HARD_INVALID: "NON_OVERRIDABLE_HARD_INVALID",
+} as const;
+
+export interface Phase3RuleResult {
+  ruleId: string;
+  ruleVersion: string;
+  category: string;
+  outcome: Phase3RuleResultOutcome;
+  severity: Phase3RuleResultSeverity;
+  field: string | null;
+  currentValue: Phase3Primitive;
   reason: string;
+  employeeRequired: boolean;
+  reviewerRequired: boolean;
+  resolutionClass?: Phase3RuleResultResolutionClass;
+  safeRepair?: Phase3Repair;
 }
 
-export interface HealthStatus {
-  status: string;
-}
+export type Phase3QuestionConfigurationType =
+  (typeof Phase3QuestionConfigurationType)[keyof typeof Phase3QuestionConfigurationType];
 
-export interface ImportBatchRequest {
-  /**
-     * @minLength 1
-     * @maxLength 200
-     */
-  importKey: string;
-  /**
-     * @minLength 1
-     * @maxLength 255
-     */
-  filename: string;
-  /**
-     * @minLength 1
-     * @maxLength 100
-     */
-  mimeType: string;
-  /** @minLength 1 */
-  content: string;
-  /**
-     * @minLength 1
-     * @maxLength 200
-     */
-  name?: string;
-}
+export const Phase3QuestionConfigurationType = {
+  boolean: "boolean",
+  number: "number",
+  text: "text",
+  select: "select",
+} as const;
 
-export interface ImportBatchResult {
-  batchId: string;
-  replayed: boolean;
-  /** @minimum 1 */
-  itemCount: number;
-  /** @pattern ^[a-f0-9]{64}$ */
-  checksum: string;
-}
-
-export interface BatchProgress {
-  /** @minimum 0 */
-  totalItemCount: number;
-  /** @minimum 0 */
-  completedCount: number;
-  /** @minimum 0 */
-  reviewCount: number;
-  /** @minimum 0 */
-  processedCount: number;
-  /** @minimum 0 */
-  pendingCount: number;
-  /**
-     * @minimum 0
-     * @maximum 100
-     */
-  percent: number;
-  complete: boolean;
-}
-
-export interface Batch {
+export interface Phase3QuestionConfiguration {
   id: string;
-  name: string;
-  status: string;
-  progress: BatchProgress;
-  [key: string]: unknown;
- }
+  ruleId: string;
+  type: Phase3QuestionConfigurationType;
+  label: string;
+  required: true;
+  displayOrder: number;
+  shortcutPosition?: number;
+  /** @minItems 1 */
+  options?: string[];
+  min?: number;
+  max?: number;
+  /** @minimum 0 */
+  minLength?: number;
+  /** @minimum 1 */
+  maxLength?: number;
+}
+
+export interface Phase3QuestionAnswer {
+  value: Phase3Primitive;
+}
+
+export type Phase3QuestionLifecycleStatus =
+  (typeof Phase3QuestionLifecycleStatus)[keyof typeof Phase3QuestionLifecycleStatus];
+
+export const Phase3QuestionLifecycleStatus = {
+  active: "active",
+  answered: "answered",
+  resolved: "resolved",
+  superseded: "superseded",
+} as const;
+
+export interface Phase3Question {
+  id: string;
+  itemId: string;
+  analysisId: string;
+  ruleVersion: string;
+  ruleId: string;
+  displayOrder: number;
+  lifecycleStatus: Phase3QuestionLifecycleStatus;
+  configuration: Phase3QuestionConfiguration;
+  answer?: Phase3QuestionAnswer | null;
+  answeredBy?: string | null;
+  answeredAt?: string | null;
+  createdAt: string;
+}
+
+export type Phase3ResultEmployeeAnswers = { [key: string]: Phase3Primitive };
+
+export type Phase3ReviewerDecisionStatus =
+  (typeof Phase3ReviewerDecisionStatus)[keyof typeof Phase3ReviewerDecisionStatus];
+
+export const Phase3ReviewerDecisionStatus = {
+  approved: "approved",
+  unresolved: "unresolved",
+} as const;
+
+export type Phase3ReviewerDecisionEvidence = { [key: string]: string };
+
+export interface Phase3ReviewerDecision {
+  status: Phase3ReviewerDecisionStatus;
+  /**
+   * @minLength 1
+   * @maxLength 2000
+   */
+  reason: string;
+  /** @minimum 1 */
+  analysisVersion: number;
+  resolvedRuleIds: string[];
+  evidence: Phase3ReviewerDecisionEvidence;
+}
+
+export interface Phase3Result {
+  id: string;
+  itemId: string;
+  ruleVersion: string;
+  normalizedValues: Phase3NormalizedValues;
+  results: Phase3RuleResult[];
+  repairs: Phase3Repair[];
+  employeeAnswers: Phase3ResultEmployeeAnswers;
+  reviewerDecision?: Phase3ReviewerDecision | null;
+  exportReady: boolean;
+  /** @minimum 1 */
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  questions: Phase3Question[];
+}
 
 export interface IncludedItemsAnswer {
   selectedQuestionIds: string[];
   explicitlyNone: boolean;
 }
 
-export type ConditionCode = typeof ConditionCode[keyof typeof ConditionCode];
-
+export type ConditionCode = (typeof ConditionCode)[keyof typeof ConditionCode];
 
 export const ConditionCode = {
-  A: 'A',
-  B: 'B',
-  C: 'C',
-  D: 'D',
+  A: "A",
+  B: "B",
+  C: "C",
+  D: "D",
 } as const;
 
-export type ItemDraftStatus = typeof ItemDraftStatus[keyof typeof ItemDraftStatus];
-
+export type ItemDraftStatus =
+  (typeof ItemDraftStatus)[keyof typeof ItemDraftStatus];
 
 export const ItemDraftStatus = {
-  new: 'new',
-  editing: 'editing',
-  restored: 'restored',
-  submitted: 'submitted',
-  needs_review: 'needs_review',
+  new: "new",
+  editing: "editing",
+  restored: "restored",
+  submitted: "submitted",
+  needs_review: "needs_review",
 } as const;
 
-export type ItemDraftFieldValues = {[key: string]: string | number | boolean | null};
+export type ItemDraftFieldValues = {
+  [key: string]: string | number | boolean | null;
+};
 
 export interface ItemDraft {
   itemId: string;
@@ -177,13 +273,127 @@ export interface ListingItem {
   draftVersion: number;
   draft?: ItemDraft | null;
   [key: string]: unknown;
- }
+}
 
-export type DraftWriteResponseStatus = typeof DraftWriteResponseStatus[keyof typeof DraftWriteResponseStatus];
+export type Phase3WorkPageResultsItem = {
+  item: ListingItem;
+  result: Phase3Result;
+};
 
+export interface Phase3WorkPage {
+  batchId: string;
+  offset: number;
+  limit: number;
+  results: Phase3WorkPageResultsItem[];
+}
+
+export interface Phase3MutationResult {
+  itemId: string;
+  replayed: boolean;
+  exportReady: boolean;
+}
+
+export type Phase3AnswersRequestAnswers = {
+  [key: string]: string | number | boolean;
+};
+
+export interface Phase3AnswersRequest {
+  answers: Phase3AnswersRequestAnswers;
+}
+
+export type Phase3ReviewRequestStatus =
+  (typeof Phase3ReviewRequestStatus)[keyof typeof Phase3ReviewRequestStatus];
+
+export const Phase3ReviewRequestStatus = {
+  approved: "approved",
+  unresolved: "unresolved",
+} as const;
+
+export type Phase3ReviewRequestEvidence = { [key: string]: string };
+
+export interface Phase3ReviewRequest {
+  status: Phase3ReviewRequestStatus;
+  /**
+   * @minLength 1
+   * @maxLength 2000
+   */
+  reason: string;
+  /** @minimum 1 */
+  analysisVersion: number;
+  resolvedRuleIds: string[];
+  evidence: Phase3ReviewRequestEvidence;
+}
+
+export interface HealthStatus {
+  status: string;
+}
+
+export interface ImportBatchRequest {
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  importKey: string;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  filename: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  mimeType: string;
+  /** @minLength 1 */
+  content: string;
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  name?: string;
+}
+
+export interface ImportBatchResult {
+  batchId: string;
+  replayed: boolean;
+  /** @minimum 1 */
+  itemCount: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  checksum: string;
+}
+
+export interface BatchProgress {
+  /** @minimum 0 */
+  totalItemCount: number;
+  /** @minimum 0 */
+  completedCount: number;
+  /** @minimum 0 */
+  reviewCount: number;
+  /** @minimum 0 */
+  processedCount: number;
+  /** @minimum 0 */
+  pendingCount: number;
+  /**
+   * @minimum 0
+   * @maximum 100
+   */
+  percent: number;
+  complete: boolean;
+}
+
+export interface Batch {
+  id: string;
+  name: string;
+  status: string;
+  progress: BatchProgress;
+  [key: string]: unknown;
+}
+
+export type DraftWriteResponseStatus =
+  (typeof DraftWriteResponseStatus)[keyof typeof DraftWriteResponseStatus];
 
 export const DraftWriteResponseStatus = {
-  editing: 'editing',
+  editing: "editing",
 } as const;
 
 export interface DraftWriteResponse {
@@ -205,16 +415,16 @@ export interface SaveDraftRequest {
   expectedDraftVersion: number;
 }
 
-export type NeedsReviewRequestReasonCode = typeof NeedsReviewRequestReasonCode[keyof typeof NeedsReviewRequestReasonCode];
-
+export type NeedsReviewRequestReasonCode =
+  (typeof NeedsReviewRequestReasonCode)[keyof typeof NeedsReviewRequestReasonCode];
 
 export const NeedsReviewRequestReasonCode = {
-  inventory_discrepancy: 'inventory_discrepancy',
-  item_damage: 'item_damage',
-  identity_uncertain: 'identity_uncertain',
-  missing_information: 'missing_information',
-  workflow_exception: 'workflow_exception',
-  other: 'other',
+  inventory_discrepancy: "inventory_discrepancy",
+  item_damage: "item_damage",
+  identity_uncertain: "identity_uncertain",
+  missing_information: "missing_information",
+  workflow_exception: "workflow_exception",
+  other: "other",
 } as const;
 
 export type NeedsReviewRequestReason = {
@@ -228,12 +438,12 @@ export interface NeedsReviewRequest {
   reason: NeedsReviewRequestReason;
 }
 
-export type ItemWriteResponseStatus = typeof ItemWriteResponseStatus[keyof typeof ItemWriteResponseStatus];
-
+export type ItemWriteResponseStatus =
+  (typeof ItemWriteResponseStatus)[keyof typeof ItemWriteResponseStatus];
 
 export const ItemWriteResponseStatus = {
-  completed: 'completed',
-  needs_review: 'needs_review',
+  completed: "completed",
+  needs_review: "needs_review",
 } as const;
 
 export interface ItemWriteResponse {
@@ -245,28 +455,27 @@ export interface ItemWriteResponse {
   replayed: boolean;
 }
 
-export type ApiErrorCode = typeof ApiErrorCode[keyof typeof ApiErrorCode];
-
+export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];
 
 export const ApiErrorCode = {
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  INVALID_CSV: 'INVALID_CSV',
-  INVALID_ENCODING: 'INVALID_ENCODING',
-  INVALID_FILE_TYPE: 'INVALID_FILE_TYPE',
-  UPLOAD_TOO_LARGE: 'UPLOAD_TOO_LARGE',
-  ROW_LIMIT_EXCEEDED: 'ROW_LIMIT_EXCEEDED',
-  UNEXPECTED_HEADERS: 'UNEXPECTED_HEADERS',
-  UNSUPPORTED_SCHEMA_VERSION: 'UNSUPPORTED_SCHEMA_VERSION',
-  CONFLICT: 'CONFLICT',
-  SYSTEM_ERROR: 'SYSTEM_ERROR',
-  AI_PROCESSING_ERROR: 'AI_PROCESSING_ERROR',
-  UNAUTHORIZED: 'UNAUTHORIZED',
-  FORBIDDEN: 'FORBIDDEN',
-  NOT_FOUND: 'NOT_FOUND',
-  RATE_LIMITED: 'RATE_LIMITED',
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  INVALID_CSV: "INVALID_CSV",
+  INVALID_ENCODING: "INVALID_ENCODING",
+  INVALID_FILE_TYPE: "INVALID_FILE_TYPE",
+  UPLOAD_TOO_LARGE: "UPLOAD_TOO_LARGE",
+  ROW_LIMIT_EXCEEDED: "ROW_LIMIT_EXCEEDED",
+  UNEXPECTED_HEADERS: "UNEXPECTED_HEADERS",
+  UNSUPPORTED_SCHEMA_VERSION: "UNSUPPORTED_SCHEMA_VERSION",
+  CONFLICT: "CONFLICT",
+  SYSTEM_ERROR: "SYSTEM_ERROR",
+  AI_PROCESSING_ERROR: "AI_PROCESSING_ERROR",
+  UNAUTHORIZED: "UNAUTHORIZED",
+  FORBIDDEN: "FORBIDDEN",
+  NOT_FOUND: "NOT_FOUND",
+  RATE_LIMITED: "RATE_LIMITED",
 } as const;
 
-export type ApiErrorFieldErrors = {[key: string]: string[]};
+export type ApiErrorFieldErrors = { [key: string]: string[] };
 
 export interface ApiError {
   code: ApiErrorCode;
@@ -295,8 +504,14 @@ export type GetNextPendingItem200 = {
   item: ListingItem | null;
 };
 
-export type GetPhase3Results200 = { [key: string]: unknown };
-
-export type AnswerPhase3Questions200 = { [key: string]: unknown };
-
-export type ReviewPhase3Item200 = { [key: string]: unknown };
+export type GetPhase3BatchWorkParams = {
+  /**
+   * @minimum 0
+   */
+  offset?: number;
+  /**
+   * @minimum 1
+   * @maximum 200
+   */
+  limit?: number;
+};

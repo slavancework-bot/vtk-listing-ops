@@ -123,6 +123,8 @@ export interface EmployeeQuestion {
   shortcutPosition?: number;
   min?: number;
   max?: number;
+  minLength?: number;
+  maxLength?: number;
 }
 export interface Analysis {
   ruleVersion: typeof LISTING_RULESET_VERSION;
@@ -192,19 +194,32 @@ function known(
   const header = Object.keys(mapping).find((h) => mapping[h] === name);
   return header ? (row[header] ?? "") : "";
 }
+function lotEvidence(title: string) {
+  const explicitIntent =
+    /(?:^|\s)(?:[-+]?\d+\s+LOT|LOT\b|KIT\b|[-+]?\d+x\s+KIT)(?:\s|$)/i.test(
+      title,
+    );
+  const matches = [
+    ...title.matchAll(
+      /(?:^|\s)(?:([-+]?\d+)\s+LOT|KIT\s+([-+]?\d+)x|([-+]?\d+)x\s+KIT)(?=\s|$)/gi,
+    ),
+  ];
+  const values = matches.map((match) =>
+    Number(match[1] ?? match[2] ?? match[3]),
+  );
+  const invalid =
+    explicitIntent &&
+    (values.length !== 1 ||
+      !Number.isSafeInteger(values[0]) ||
+      values[0]! < 1 ||
+      values[0]! > 1_000);
+  return { size: invalid || values.length !== 1 ? null : values[0]!, invalid };
+}
 function lot(title: string) {
-  const lot = title.match(/(?:^|\s)(\d{1,4})\s+LOT(?:\s|$)/i);
-  const kit = title.match(/(?:^|\s)KIT\s+(\d{1,4})x(?:\s|$)/i);
-  const size = Number(lot?.[1] ?? kit?.[1] ?? 0);
-  return size > 0 ? size : null;
+  return lotEvidence(title).size;
 }
 function hasInvalidExplicitLot(title: string) {
-  const token = title.match(
-    /(?:^|\s)(\d+)\s+LOT(?:\s|$)|(?:^|\s)KIT\s+(\d+)x(?:\s|$)/i,
-  );
-  if (!token) return false;
-  const value = Number(token[1] ?? token[2]);
-  return !Number.isSafeInteger(value) || value < 1 || value > 1_000;
+  return lotEvidence(title).invalid;
 }
 
 export function importSixBitCsv(
@@ -511,6 +526,8 @@ export function analyzeListing(
         "Enter the verified R2/custom code, or NONE when the approved semantics apply.",
       required: true,
       displayOrder: 10,
+      minLength: 1,
+      maxLength: 32,
     });
   } else if (!/^[A-Z0-9][A-Z0-9-]{0,31}$/i.test(n.r2Code)) {
     results.push(
@@ -535,6 +552,8 @@ export function analyzeListing(
       label: "Replace the invalid value with the verified R2/custom code.",
       required: true,
       displayOrder: 10,
+      minLength: 1,
+      maxLength: 32,
     });
   } else
     results.push(
@@ -547,6 +566,24 @@ export function analyzeListing(
         "R2/custom code is present and structurally valid.",
       ),
     );
+  const missingQuantityFields = (
+    ["qtyToList", "qtyUncommitted", "qtyCurrentlyListed"] as const
+  ).filter((field) => n[field] === null);
+  results.push(
+    result(
+      "QUANTITY.REQUIRED",
+      "Quantity",
+      missingQuantityFields.length ? "FAIL" : "PASS",
+      missingQuantityFields[0] ?? "qtyToList",
+      missingQuantityFields.length ? null : n.qtyToList,
+      missingQuantityFields.length
+        ? `Required quantity values are missing: ${missingQuantityFields.join(", ")}.`
+        : "QtyToList, QtyUncommitted, and QtyCurrentlyListed are present nonnegative safe integers.",
+      missingQuantityFields.length
+        ? { resolutionClass: "NON_OVERRIDABLE_HARD_INVALID" }
+        : {},
+    ),
+  );
   if (
     n.qtyToList !== null &&
     n.qtyUncommitted !== null &&
@@ -627,6 +664,8 @@ export function analyzeListing(
           label: "Enter the authorization reason (8–500 characters).",
           required: true,
           displayOrder: 23,
+          minLength: 8,
+          maxLength: 500,
         },
         {
           id: "q:qty.override.source",
@@ -635,6 +674,8 @@ export function analyzeListing(
           label: "Enter the evidence source or reference.",
           required: true,
           displayOrder: 24,
+          minLength: 3,
+          maxLength: 200,
         },
       );
     }
@@ -798,7 +839,7 @@ export function analyzeListing(
     normalized: n,
     repairs,
     results,
-    questions: questions.filter((q) => answers[q.id] === undefined),
+    questions,
     exportReady: !unresolved,
   };
 }

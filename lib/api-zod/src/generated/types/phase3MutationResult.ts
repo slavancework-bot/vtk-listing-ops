@@ -6,4 +6,8 @@
  * OpenAPI spec version: 0.3.0
  */
 
-export type GetPhase3Results200 = { [key: string]: unknown };
+export interface Phase3MutationResult {
+  itemId: string;
+  replayed: boolean;
+  exportReady: boolean;
+}

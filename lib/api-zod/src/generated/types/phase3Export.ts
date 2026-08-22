@@ -5,7 +5,7 @@
  * Executable deterministic SixBit CSV listing workflow API
  * OpenAPI spec version: 0.3.0
  */
-import type { Phase3ExportFieldDiffsItem } from './phase3ExportFieldDiffsItem';
+import type { Phase3FieldDiff } from './phase3FieldDiff';
 
 export interface Phase3Export {
   exportId: string;
@@ -14,5 +14,5 @@ export interface Phase3Export {
   schemaVersion: string;
   ruleVersion: string;
   content: string;
-  fieldDiffs: Phase3ExportFieldDiffsItem[];
+  fieldDiffs: Phase3FieldDiff[];
 }

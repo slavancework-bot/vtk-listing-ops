@@ -5,5 +5,6 @@
  * Executable deterministic SixBit CSV listing workflow API
  * OpenAPI spec version: 0.3.0
  */
+import type { Phase3Primitive } from './phase3Primitive';
 
-export type ReviewPhase3Item200 = { [key: string]: unknown };
+export type Phase3ResultEmployeeAnswers = {[key: string]: Phase3Primitive};

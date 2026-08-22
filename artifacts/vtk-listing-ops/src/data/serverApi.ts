@@ -164,7 +164,7 @@ export async function loadProgress(batchId: string) {
 export interface Phase3Question {
   id: string;
   ruleId: string;
-  lifecycleStatus: "active" | "answered" | "superseded";
+  lifecycleStatus: "active" | "answered" | "resolved" | "superseded";
   configuration: {
     id: string;
     ruleId: string;
@@ -174,6 +174,8 @@ export interface Phase3Question {
     options?: string[];
     min?: number;
     max?: number;
+    minLength?: number;
+    maxLength?: number;
   };
   answer: { value: string | number | boolean } | null;
 }

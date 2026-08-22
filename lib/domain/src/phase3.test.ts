@@ -240,3 +240,118 @@ test("listed quantity truth table is deterministic and ambiguous status fails cl
     "FAIL",
   );
 });
+
+test("missing core quantities are non-overridable and never export ready", () => {
+  const base = importSixBitCsv(csv(clean)).rows[0]!.normalized;
+  for (const field of [
+    "qtyToList",
+    "qtyUncommitted",
+    "qtyCurrentlyListed",
+  ] as const) {
+    const analysis = analyzeListing({ ...base, [field]: null });
+    const gate = analysis.results.find(
+      (r) => r.ruleId === "QUANTITY.REQUIRED",
+    )!;
+    assert.equal(gate.outcome, "FAIL", field);
+    assert.equal(gate.resolutionClass, "NON_OVERRIDABLE_HARD_INVALID", field);
+    assert.equal(analysis.exportReady, false, field);
+  }
+});
+
+test("invalid employee evidence keeps the corrective question until valid", () => {
+  const base = {
+    ...importSixBitCsv(csv(clean)).rows[0]!.normalized,
+    r2Code: "",
+  };
+  const invalid = analyzeListing(base, { "q:r2.required": "bad value" });
+  assert.equal(
+    invalid.results.find((r) => r.ruleId === "R2.REQUIRED")!.outcome,
+    "VERIFY",
+  );
+  assert.deepEqual(
+    invalid.questions.map((q) => q.id),
+    ["q:r2.required"],
+  );
+  const valid = analyzeListing(base, { "q:r2.required": "R2-VALID" });
+  assert.equal(
+    valid.results.find((r) => r.ruleId === "R2.REQUIRED")!.outcome,
+    "PASS_EMPLOYEE_VERIFIED",
+  );
+  assert.equal(
+    valid.questions.some((q) => q.id === "q:r2.required"),
+    false,
+  );
+});
+
+test("LOT and KIT intent matrix rejects malformed, mixed, negative, zero, huge, and overflow tokens", () => {
+  const base = importSixBitCsv(csv(clean)).rows[0]!.normalized;
+  for (const [title, size] of [
+    [
+      "NEW 12 LOT Widget Complete Verified Industrial Assembly Package 2026",
+      12,
+    ],
+    ["NEW KIT 2x Widget Complete Verified Industrial Assembly Package 2026", 2],
+    ["NEW 4x KIT Widget Complete Verified Industrial Assembly Package 2026", 4],
+  ] as const) {
+    const analysis = analyzeListing({ ...base, title });
+    assert.equal(analysis.normalized.lotSize, size, title);
+    assert.equal(
+      analysis.results.find((r) => r.ruleId === "LOT.PARSE")!.outcome,
+      "PASS",
+      title,
+    );
+  }
+  for (const title of [
+    "NEW -2 LOT Widget Complete Verified Industrial Assembly Package 2026",
+    "NEW 0 LOT Widget Complete Verified Industrial Assembly Package 2026",
+    "NEW 1001 LOT Widget Complete Verified Industrial Assembly Package 2026",
+    "NEW 12 LOT KIT 2x Widget Complete Verified Industrial Assembly Package",
+    "NEW LOT Widget Complete Verified Industrial Assembly Package 2026",
+    `NEW ${Number.MAX_SAFE_INTEGER} LOT Widget Complete Verified Industrial Assembly`,
+  ]) {
+    const analysis = analyzeListing({ ...base, title });
+    assert.equal(
+      analysis.results.find((r) => r.ruleId === "LOT.PARSE")!.outcome,
+      "FAIL",
+      title,
+    );
+    assert.equal(analysis.exportReady, false, title);
+  }
+  for (const title of [
+    "NEW Model 12D Widget Complete Verified Industrial Assembly Package 2026",
+    "NEW 2026 Model 4TB x86 Widget Complete Verified Industrial Assembly Package",
+  ])
+    assert.equal(
+      analyzeListing({ ...base, title }).normalized.lotSize,
+      null,
+      title,
+    );
+});
+
+test("title boundary and prohibited whole-word matrix has explicit outcomes", () => {
+  const base = importSixBitCsv(csv(clean)).rows[0]!.normalized;
+  for (const length of [73, 74, 80, 81]) {
+    const title = `NEW ${"X".repeat(length - 4)}`;
+    const outcome = analyzeListing({ ...base, title }).results.find(
+      (r) => r.ruleId === "TITLE.LENGTH",
+    )!.outcome;
+    assert.equal(outcome, length >= 74 && length <= 80 ? "PASS" : "VERIFY");
+  }
+  assert.equal(
+    analyzeListing({
+      ...base,
+      title:
+        "NEW GOODMAN Complete Verified Industrial Assembly Package Model 2026 Network",
+    }).results.find((r) => r.ruleId === "TITLE.PROHIBITED")!.outcome,
+    "PASS",
+  );
+  for (const word of ["used", "no", "not", "w/o", "missing"])
+    assert.equal(
+      analyzeListing({
+        ...base,
+        title: `NEW ${word} Complete Verified Industrial Assembly Package Model 2026 Network`,
+      }).results.find((r) => r.ruleId === "TITLE.PROHIBITED")!.outcome,
+      "VERIFY",
+      word,
+    );
+});

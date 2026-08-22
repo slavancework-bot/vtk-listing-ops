@@ -6,4 +6,4 @@
  * OpenAPI spec version: 0.3.0
  */
 
-export type Phase3AnswersRequestAnswers = {[key: string]: string | number | boolean};
+export type Phase3Primitive = string | number | boolean | null;

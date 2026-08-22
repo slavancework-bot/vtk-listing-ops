@@ -1,4 +1,11 @@
 import { Router } from "express";
+import {
+  AnswerPhase3QuestionsBody,
+  AnswerPhase3QuestionsHeader,
+  ImportPhase3BatchBody,
+  ReviewPhase3ItemBody,
+  ReviewPhase3ItemHeader,
+} from "@workspace/api-zod";
 import { ApiFault } from "../lib/errors";
 import { requireRole } from "../middleware/identity";
 import { writeRateLimit } from "../middleware/security";
@@ -10,6 +17,17 @@ function id(v: unknown) {
     throw new ApiFault(400, "VALIDATION_ERROR", "Route identifier is invalid.");
   return v;
 }
+function validated<T>(
+  schema: {
+    strict(): { safeParse(value: unknown): { success: boolean; data?: T } };
+  },
+  value: unknown,
+  message: string,
+): T {
+  const parsed = schema.strict().safeParse(value);
+  if (!parsed.success) throw new ApiFault(400, "VALIDATION_ERROR", message);
+  return parsed.data!;
+}
 export function createPhase3Router(service: Phase3Service) {
   const r = Router();
   r.post(
@@ -18,17 +36,11 @@ export function createPhase3Router(service: Phase3Service) {
     writeRateLimit,
     async (req, res, next) => {
       try {
-        const b = req.body ?? {};
-        if (
-          !["importKey", "filename", "mimeType", "content"].every(
-            (k) => typeof b[k] === "string",
-          )
-        )
-          throw new ApiFault(
-            400,
-            "VALIDATION_ERROR",
-            "Import request is invalid.",
-          );
+        const b = validated(
+          ImportPhase3BatchBody,
+          req.body,
+          "Import request is invalid.",
+        );
         res.status(201).json(
           await service.import({
             ...b,
@@ -111,20 +123,23 @@ export function createPhase3Router(service: Phase3Service) {
     writeRateLimit,
     async (req, res, next) => {
       try {
-        if (
-          !req.body ||
-          Object.keys(req.body).some((k) => k !== "answers") ||
-          typeof req.body.answers !== "object" ||
-          Array.isArray(req.body.answers)
-        )
-          throw new ApiFault(400, "VALIDATION_ERROR", "Answers are required.");
+        const body = validated(
+          AnswerPhase3QuestionsBody,
+          req.body,
+          "Answers are required.",
+        );
+        const header = validated(
+          AnswerPhase3QuestionsHeader,
+          { "Idempotency-Key": req.header("idempotency-key") },
+          "A valid Idempotency-Key is required.",
+        );
         res.json(
           await service.answer(
             id(req.params.itemId),
             req.identity!.subject,
             req.identity!.role,
-            req.header("idempotency-key") ?? "",
-            req.body.answers,
+            header["Idempotency-Key"],
+            body.answers,
             req.correlationId,
           ),
         );
@@ -139,42 +154,23 @@ export function createPhase3Router(service: Phase3Service) {
     writeRateLimit,
     async (req, res, next) => {
       try {
-        const b = req.body;
-        if (
-          !b ||
-          Object.keys(b).some(
-            (k) =>
-              ![
-                "status",
-                "reason",
-                "analysisVersion",
-                "resolvedRuleIds",
-                "evidence",
-              ].includes(k),
-          ) ||
-          !["approved", "unresolved"].includes(b.status) ||
-          typeof b.reason !== "string" ||
-          b.reason.length > 2000 ||
-          !Number.isSafeInteger(b.analysisVersion) ||
-          !Array.isArray(b.resolvedRuleIds) ||
-          b.resolvedRuleIds.some((v: unknown) => typeof v !== "string") ||
-          !b.evidence ||
-          typeof b.evidence !== "object" ||
-          Array.isArray(b.evidence) ||
-          Object.values(b.evidence).some((v) => typeof v !== "string")
-        )
-          throw new ApiFault(
-            400,
-            "VALIDATION_ERROR",
-            "Review request is invalid.",
-          );
+        const b = validated(
+          ReviewPhase3ItemBody,
+          req.body,
+          "Review request is invalid.",
+        );
+        const header = validated(
+          ReviewPhase3ItemHeader,
+          { "Idempotency-Key": req.header("idempotency-key") },
+          "A valid Idempotency-Key is required.",
+        );
         res.json(
           await service.review(
             id(req.params.itemId),
             req.identity!.subject,
             req.identity!.role,
-            req.header("idempotency-key") ?? "",
-            req.body,
+            header["Idempotency-Key"],
+            b,
             req.correlationId,
           ),
         );

@@ -6,4 +6,4 @@
  * OpenAPI spec version: 0.3.0
  */
 
-export type Phase3ExportFieldDiffsItem = { [key: string]: unknown };
+export type Phase3ReviewRequestEvidence = {[key: string]: string};

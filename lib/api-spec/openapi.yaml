@@ -591,8 +591,66 @@ components:
             fieldDiffs:
               {
                 type: array,
-                items: { type: object, additionalProperties: true },
+                items: { $ref: "#/components/schemas/Phase3FieldDiff" },
               },
+          },
+      }
+    Phase3FieldDiff:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [itemId, field, before, after],
+        properties:
+          {
+            itemId: { type: string, format: uuid },
+            field: { type: string, minLength: 1 },
+            before: { type: string },
+            after: { type: string },
+          },
+      }
+    Phase3Primitive:
+      {
+        oneOf:
+          [
+            { type: string, maxLength: 2000 },
+            { type: number },
+            { type: boolean },
+            { type: "null" },
+          ],
+      }
+    Phase3NormalizedValues:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [sourceDatabase, itemId, inventoryId, sku, title, description, storageLocation, qtyToList, qtyUncommitted, qtyCurrentlyListed, qtySold, stockTotal, fixedPrice, itemStatus, itemStatusId, condition, r2Code, checkCount, cfCheck, lotSize, totalPieces, priceEachPiece],
+        properties:
+          {
+            sourceDatabase: { type: string }, itemId: { type: string }, inventoryId: { type: string }, sku: { type: string },
+            title: { type: string }, description: { type: string }, storageLocation: { type: string },
+            qtyToList: { oneOf: [{ type: integer }, { type: "null" }] },
+            qtyUncommitted: { oneOf: [{ type: integer }, { type: "null" }] },
+            qtyCurrentlyListed: { oneOf: [{ type: integer }, { type: "null" }] },
+            qtySold: { oneOf: [{ type: integer }, { type: "null" }] },
+            stockTotal: { oneOf: [{ type: integer }, { type: "null" }] },
+            fixedPrice: { type: string }, itemStatus: { type: string }, itemStatusId: { type: string }, condition: { type: string }, r2Code: { type: string },
+            checkCount: { oneOf: [{ type: boolean }, { type: "null" }] }, cfCheck: { type: string },
+            lotSize: { oneOf: [{ type: integer }, { type: "null" }] },
+            totalPieces: { oneOf: [{ type: integer }, { type: "null" }] },
+            priceEachPiece: { oneOf: [{ type: number }, { type: "null" }] },
+          },
+      }
+    Phase3Repair:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [field, before, after, reason, algorithmVersion],
+        properties:
+          {
+            field: { type: string },
+            before: { $ref: "#/components/schemas/Phase3Primitive" },
+            after: { $ref: "#/components/schemas/Phase3Primitive" },
+            reason: { type: string },
+            algorithmVersion: { type: string },
           },
       }
     Phase3RuleResult:
@@ -624,7 +682,7 @@ components:
               },
             severity: { type: string, enum: [info, warning, error] },
             field: { oneOf: [{ type: string }, { type: "null" }] },
-            currentValue: {},
+            currentValue: { $ref: "#/components/schemas/Phase3Primitive" },
             reason: { type: string },
             employeeRequired: { type: boolean },
             reviewerRequired: { type: boolean },
@@ -638,8 +696,31 @@ components:
                     NON_OVERRIDABLE_HARD_INVALID,
                   ],
               },
-            safeRepair: { type: object, additionalProperties: true },
+            safeRepair: { $ref: "#/components/schemas/Phase3Repair" },
           },
+      }
+    Phase3QuestionConfiguration:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [id, ruleId, type, label, required, displayOrder],
+        properties:
+          {
+            id: { type: string }, ruleId: { type: string },
+            type: { type: string, enum: [boolean, number, text, select] },
+            label: { type: string }, required: { type: boolean, enum: [true] },
+            displayOrder: { type: integer }, shortcutPosition: { type: integer },
+            options: { type: array, items: { type: string }, minItems: 1 },
+            min: { type: number }, max: { type: number },
+            minLength: { type: integer, minimum: 0 }, maxLength: { type: integer, minimum: 1 },
+          },
+      }
+    Phase3QuestionAnswer:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [value],
+        properties: { value: { $ref: "#/components/schemas/Phase3Primitive" } },
       }
     Phase3Question:
       {
@@ -666,13 +747,14 @@ components:
             ruleId: { type: string },
             displayOrder: { type: integer },
             lifecycleStatus:
-              { type: string, enum: [active, answered, superseded] },
-            configuration: { type: object, additionalProperties: true },
+              { type: string, enum: [active, answered, resolved, superseded] },
+            configuration:
+              { $ref: "#/components/schemas/Phase3QuestionConfiguration" },
             answer:
               {
                 oneOf:
                   [
-                    { type: object, additionalProperties: true },
+                    { $ref: "#/components/schemas/Phase3QuestionAnswer" },
                     { type: "null" },
                   ],
               },
@@ -708,7 +790,8 @@ components:
             id: { type: string, format: uuid },
             itemId: { type: string, format: uuid },
             ruleVersion: { type: string },
-            normalizedValues: { type: object, additionalProperties: true },
+            normalizedValues:
+              { $ref: "#/components/schemas/Phase3NormalizedValues" },
             results:
               {
                 type: array,
@@ -717,14 +800,19 @@ components:
             repairs:
               {
                 type: array,
-                items: { type: object, additionalProperties: true },
+                items: { $ref: "#/components/schemas/Phase3Repair" },
               },
-            employeeAnswers: { type: object, additionalProperties: true },
+            employeeAnswers:
+              {
+                type: object,
+                additionalProperties:
+                  { $ref: "#/components/schemas/Phase3Primitive" },
+              },
             reviewerDecision:
               {
                 oneOf:
                   [
-                    { type: object, additionalProperties: true },
+                    { $ref: "#/components/schemas/Phase3ReviewerDecision" },
                     { type: "null" },
                   ],
               },
@@ -769,13 +857,27 @@ components:
     Phase3MutationResult:
       {
         type: object,
-        additionalProperties: true,
+        additionalProperties: false,
         required: [itemId, replayed, exportReady],
         properties:
           {
             itemId: { type: string, format: uuid },
             replayed: { type: boolean },
             exportReady: { type: boolean },
+          },
+      }
+    Phase3ReviewerDecision:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [status, reason, analysisVersion, resolvedRuleIds, evidence],
+        properties:
+          {
+            status: { type: string, enum: [approved, unresolved] },
+            reason: { type: string, minLength: 1, maxLength: 2000 },
+            analysisVersion: { type: integer, minimum: 1 },
+            resolvedRuleIds: { type: array, uniqueItems: true, items: { type: string } },
+            evidence: { type: object, additionalProperties: { type: string, minLength: 1, maxLength: 2000 } },
           },
       }
     Phase3AnswersRequest:

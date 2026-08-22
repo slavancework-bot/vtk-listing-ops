@@ -5,11 +5,11 @@
  * Executable deterministic SixBit CSV listing workflow API
  * OpenAPI spec version: 0.3.0
  */
-import type { Phase3ReviewRequestEvidence } from './phase3ReviewRequestEvidence';
-import type { Phase3ReviewRequestStatus } from './phase3ReviewRequestStatus';
+import type { Phase3ReviewerDecisionEvidence } from './phase3ReviewerDecisionEvidence';
+import type { Phase3ReviewerDecisionStatus } from './phase3ReviewerDecisionStatus';
 
-export interface Phase3ReviewRequest {
-  status: Phase3ReviewRequestStatus;
+export interface Phase3ReviewerDecision {
+  status: Phase3ReviewerDecisionStatus;
   /**
      * @minLength 1
      * @maxLength 2000
@@ -18,5 +18,5 @@ export interface Phase3ReviewRequest {
   /** @minimum 1 */
   analysisVersion: number;
   resolvedRuleIds: string[];
-  evidence: Phase3ReviewRequestEvidence;
+  evidence: Phase3ReviewerDecisionEvidence;
 }

@@ -401,7 +401,7 @@ export const listingQuestions = pgTable(
     ),
     check(
       "listing_questions_lifecycle_valid",
-      sql`${table.lifecycleStatus} in ('active','answered','superseded')`,
+      sql`${table.lifecycleStatus} in ('active','answered','resolved','superseded')`,
     ),
   ],
 );
