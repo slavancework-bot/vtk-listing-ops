@@ -1309,7 +1309,7 @@ test("1000-row Phase 3 API service path remains bounded on real PostgreSQL", asy
   const header =
     "SourceDatabase,ItemID,InventoryID,SKU,Title,eBay Description,StorageLocation,QtyToList,QtyUncommitted,QtyCurrentlyListed,QtySold,StockTotal,FixedPrice,ItemStatus,ItemStatusID,Condition,R2Code,Check Count,CF Check,UnknownPassThrough";
   const title =
-    "NEW Industrial Network Adapter Module Model ZX9000 USB Ethernet Mounting Kit";
+    "NEW Industrial Network Adapter Module Model ZX9000 USB Ethernet Mounting Rails";
   const rows = Array.from({ length: 1000 }, (_, index) => {
     const id = String(index + 1).padStart(6, "0");
     return `VTK,${id},INV-${id},SKU-${id},${title},Verified synthetic item.,P-${id},1,1,0,0,1,10.00,Ready,1,A,R2-${id},FALSE,OK,pass-${id}`;
