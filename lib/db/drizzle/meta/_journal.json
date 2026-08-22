@@ -29,6 +29,20 @@
       "when": 1787101800000,
       "tag": "0003_phase2_controlled_integration",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787319246578,
+      "tag": "0004_peaceful_magneto",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787339563596,
+      "tag": "0005_silky_ultragirl",
+      "breakpoints": true
     }
   ]
 }

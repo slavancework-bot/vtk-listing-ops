@@ -6,6 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import Dashboard from './pages/Dashboard';
 import EmployeeScreen from './pages/EmployeeScreen';
+import Phase3EmployeeScreen from './pages/Phase3EmployeeScreen';
 import ReviewerScreen from './pages/ReviewerScreen';
 import {
   Route,
@@ -22,6 +23,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/employee" component={EmployeeScreen} />
+        <Route path="/phase3/employee" component={Phase3EmployeeScreen} />
         <Route path="/reviewer" component={ReviewerScreen} />
         <Route component={NotFound} />
       </Switch>

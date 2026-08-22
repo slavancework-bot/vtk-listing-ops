@@ -2,19 +2,217 @@ import type { ItemDraft } from "@workspace/domain";
 import type { ItemScenario } from "./mockData";
 
 const actorId = "development-employee";
-const apiBase=import.meta.env.VITE_API_BASE_URL??"/api";
+const apiBase = import.meta.env.VITE_API_BASE_URL ?? "/api";
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${apiBase}${path}`, { ...init, headers: { "content-type":"application/json", "x-development-user":actorId, ...init.headers } });
-  const data = await response.json().catch(()=>({}));
-  if (!response.ok) { const error=new Error(String(data.message ?? "Server request failed.")) as Error & {status?:number;data?:unknown}; error.status=response.status; error.data=data; throw error; }
+  const response = await fetch(`${apiBase}${path}`, {
+    ...init,
+    headers: {
+      "content-type": "application/json",
+      "x-development-user": actorId,
+      ...init.headers,
+    },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(
+      String(data.message ?? "Server request failed."),
+    ) as Error & { status?: number; data?: unknown };
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
   return data as T;
 }
-export interface ServerProgress {totalItemCount:number;completedCount:number;reviewCount:number;processedCount:number;pendingCount:number;percent:number;complete:boolean}
-export interface ServerItem {id:string;batchId:string;sourceRowId:string;sourceRowNumber:number;sku:string;normalizedValues:Record<string,unknown>;questionConfiguration:{includedQuestions:Array<Record<string,unknown>>;conditionRequired:boolean;conditionalFields:Array<Record<string,unknown>>};warnings:string[];status:string;version:number;draft:ItemDraft|null;draftVersion:number}
-export function toScenario(item:ServerItem):ItemScenario { const n=item.normalizedValues; const q=item.questionConfiguration; return {id:item.id,scenarioLabel:String(n.scenario??item.sourceRowId),manufacturer:String(n.manufacturer??""),model:String(n.model??""),mpn:n.mpn?String(n.mpn):undefined,sku:item.sku,productName:String(n.title??""),shortDescription:n.shortDescription?String(n.shortDescription):undefined,includedQuestions:q.includedQuestions.map((value,index)=>({id:index+1,label:String(value.label??value.id??`Question ${index+1}`),important:Boolean(value.important)})),conditionRequired:q.conditionRequired,conditionalFields:q.conditionalFields.map((value)=>({key:String(value.id??value.key) as "qtyToList"|"checkCount"|"stockTotal"|"otherNotes",label:String(value.label),required:Boolean(value.required),defaultValue:value.defaultValue==null?undefined:String(value.defaultValue)})),preSelectedIncluded:[],preSelectedCondition:null,scenarioNote:item.warnings[0],requiresReview:false,categoryName:undefined}; }
-export async function loadBatch(batchId:string){const [batch,result]=await Promise.all([request<{name:string;progress:ServerProgress}>(`/batches/${batchId}`),request<{items:ServerItem[]}>(`/batches/${batchId}/items`)]);return{batch,items:result.items};}
-export async function loadItem(itemId:string){return request<ServerItem>(`/items/${itemId}`);}
-function consumeTestFlag(name:string){if(typeof window==="undefined")return false;const enabled=window.localStorage.getItem(name)==="true";if(enabled)window.localStorage.removeItem(name);return enabled;}
-export async function saveDraft(itemId:string,draft:ItemDraft,expectedDraftVersion:number){const fail=consumeTestFlag("vtk-fail-next-draft");const delay=consumeTestFlag("vtk-delay-next-draft");return request<{draftVersion:number}>(`/items/${itemId}/draft`,{method:"PUT",headers:{...(fail?{"x-test-fail-draft":"true"}:{}),...(delay?{"x-test-delay-draft":"true"}:{})},body:JSON.stringify({draft,expectedDraftVersion})});}
-export async function saveFinal(itemId:string,draft:ItemDraft,review:boolean,idempotencyKey:string){const drop=window.localStorage.getItem("vtk-drop-next-response")===(review?"review":"answer");if(drop)window.localStorage.removeItem("vtk-drop-next-response");const failBefore=review&&consumeTestFlag("vtk-fail-next-review-before-commit");return request<{itemId:string;itemVersion:number;status:string;nextItemId:string|null;replayed:boolean}>(`/items/${itemId}/${review?"needs-review":"answer"}`,{method:review?"POST":"PUT",headers:{"idempotency-key":idempotencyKey,...(drop?{"x-test-drop-response-after-commit":"true"}:{}),...(failBefore?{"x-test-fail-before-commit":"true"}:{})},body:JSON.stringify(review?{draft,reason:{code:"workflow_exception",note:"Employee requested review."}}:{draft})});}
-export async function loadProgress(batchId:string){const fail=consumeTestFlag("vtk-fail-next-progress");return request<ServerProgress>(`/batches/${batchId}/progress`,{headers:fail?{"x-test-fail-progress":"true"}:{}});}
+export interface ServerProgress {
+  totalItemCount: number;
+  completedCount: number;
+  reviewCount: number;
+  processedCount: number;
+  pendingCount: number;
+  percent: number;
+  complete: boolean;
+}
+export interface ServerItem {
+  id: string;
+  batchId: string;
+  sourceRowId: string;
+  sourceRowNumber: number;
+  sku: string;
+  normalizedValues: Record<string, unknown>;
+  questionConfiguration: {
+    includedQuestions: Array<Record<string, unknown>>;
+    conditionRequired: boolean;
+    conditionalFields: Array<Record<string, unknown>>;
+  };
+  warnings: string[];
+  status: string;
+  version: number;
+  draft: ItemDraft | null;
+  draftVersion: number;
+}
+export function toScenario(item: ServerItem): ItemScenario {
+  const n = item.normalizedValues;
+  const q = item.questionConfiguration;
+  return {
+    id: item.id,
+    scenarioLabel: String(n.scenario ?? item.sourceRowId),
+    manufacturer: String(n.manufacturer ?? ""),
+    model: String(n.model ?? ""),
+    mpn: n.mpn ? String(n.mpn) : undefined,
+    sku: item.sku,
+    productName: String(n.title ?? ""),
+    shortDescription: n.shortDescription
+      ? String(n.shortDescription)
+      : undefined,
+    includedQuestions: q.includedQuestions.map((value, index) => ({
+      id: index + 1,
+      label: String(value.label ?? value.id ?? `Question ${index + 1}`),
+      important: Boolean(value.important),
+    })),
+    conditionRequired: q.conditionRequired,
+    conditionalFields: q.conditionalFields.map((value) => ({
+      key: String(value.id ?? value.key) as
+        "qtyToList" | "checkCount" | "stockTotal" | "otherNotes",
+      label: String(value.label),
+      required: Boolean(value.required),
+      defaultValue:
+        value.defaultValue == null ? undefined : String(value.defaultValue),
+    })),
+    preSelectedIncluded: [],
+    preSelectedCondition: null,
+    scenarioNote: item.warnings[0],
+    requiresReview: false,
+    categoryName: undefined,
+  };
+}
+export async function loadBatch(batchId: string) {
+  const [batch, result] = await Promise.all([
+    request<{ name: string; progress: ServerProgress }>(`/batches/${batchId}`),
+    request<{ items: ServerItem[] }>(`/batches/${batchId}/items`),
+  ]);
+  return { batch, items: result.items };
+}
+export async function loadItem(itemId: string) {
+  return request<ServerItem>(`/items/${itemId}`);
+}
+function consumeTestFlag(name: string) {
+  if (typeof window === "undefined") return false;
+  const enabled = window.localStorage.getItem(name) === "true";
+  if (enabled) window.localStorage.removeItem(name);
+  return enabled;
+}
+export async function saveDraft(
+  itemId: string,
+  draft: ItemDraft,
+  expectedDraftVersion: number,
+) {
+  const fail = consumeTestFlag("vtk-fail-next-draft");
+  const delay = consumeTestFlag("vtk-delay-next-draft");
+  return request<{ draftVersion: number }>(`/items/${itemId}/draft`, {
+    method: "PUT",
+    headers: {
+      ...(fail ? { "x-test-fail-draft": "true" } : {}),
+      ...(delay ? { "x-test-delay-draft": "true" } : {}),
+    },
+    body: JSON.stringify({ draft, expectedDraftVersion }),
+  });
+}
+export async function saveFinal(
+  itemId: string,
+  draft: ItemDraft,
+  review: boolean,
+  idempotencyKey: string,
+) {
+  const drop =
+    window.localStorage.getItem("vtk-drop-next-response") ===
+    (review ? "review" : "answer");
+  if (drop) window.localStorage.removeItem("vtk-drop-next-response");
+  const failBefore =
+    review && consumeTestFlag("vtk-fail-next-review-before-commit");
+  return request<{
+    itemId: string;
+    itemVersion: number;
+    status: string;
+    nextItemId: string | null;
+    replayed: boolean;
+  }>(`/items/${itemId}/${review ? "needs-review" : "answer"}`, {
+    method: review ? "POST" : "PUT",
+    headers: {
+      "idempotency-key": idempotencyKey,
+      ...(drop ? { "x-test-drop-response-after-commit": "true" } : {}),
+      ...(failBefore ? { "x-test-fail-before-commit": "true" } : {}),
+    },
+    body: JSON.stringify(
+      review
+        ? {
+            draft,
+            reason: {
+              code: "workflow_exception",
+              note: "Employee requested review.",
+            },
+          }
+        : { draft },
+    ),
+  });
+}
+export async function loadProgress(batchId: string) {
+  const fail = consumeTestFlag("vtk-fail-next-progress");
+  return request<ServerProgress>(`/batches/${batchId}/progress`, {
+    headers: fail ? { "x-test-fail-progress": "true" } : {},
+  });
+}
+export interface Phase3Question {
+  id: string;
+  ruleId: string;
+  lifecycleStatus: "active" | "answered" | "resolved" | "superseded";
+  configuration: {
+    id: string;
+    ruleId: string;
+    type: "boolean" | "number" | "text" | "select";
+    label: string;
+    required: boolean;
+    options?: string[];
+    min?: number;
+    max?: number;
+    minLength?: number;
+    maxLength?: number;
+  };
+  answer: { value: string | number | boolean } | null;
+}
+export interface Phase3Result {
+  id: string;
+  itemId: string;
+  version: number;
+  ruleVersion: string;
+  normalizedValues: Record<string, unknown>;
+  results: Array<{
+    ruleId: string;
+    outcome: string;
+    field: string;
+    reason: string;
+    resolutionClass?: string;
+  }>;
+  questions: Phase3Question[];
+  employeeAnswers: Record<string, string | number | boolean>;
+  exportReady: boolean;
+}
+export async function loadPhase3Work(batchId: string) {
+  const page = await request<{
+    results: Array<{ item: ServerItem; result: Phase3Result }>;
+  }>(`/phase3/batches/${batchId}/work?offset=0&limit=200`);
+  return { results: page.results };
+}
+export async function savePhase3Answers(
+  itemId: string,
+  answers: Record<string, string | number | boolean>,
+  idempotencyKey: string,
+) {
+  return request<{ itemId: string; replayed: boolean; exportReady: boolean }>(
+    `/phase3/items/${itemId}/answers`,
+    {
+      method: "PUT",
+      headers: { "idempotency-key": idempotencyKey },
+      body: JSON.stringify({ answers }),
+    },
+  );
+}

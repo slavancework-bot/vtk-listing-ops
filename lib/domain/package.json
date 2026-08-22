@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./phase3": "./src/phase3.ts"
   },
   "scripts": {
     "test": "node --import tsx --test src/*.test.ts"

@@ -1,7 +1,13 @@
 openapi: 3.1.0
-info: { title: VTK Listing Ops API, version: 0.2.0, description: Executable controlled nonproduction integration API }
+info:
+  {
+    title: VTK Listing Ops API,
+    version: 0.3.0,
+    description: Executable deterministic SixBit CSV listing workflow API,
+  }
 servers: [{ url: /api }]
-tags: [{ name: health }, { name: batches }, { name: employee }]
+tags:
+  [{ name: health }, { name: batches }, { name: employee }, { name: phase3 }]
 paths:
   /healthz:
     get:
@@ -9,69 +15,286 @@ paths:
       tags: [health]
       security: []
       responses:
-        "200": { description: Healthy, content: { application/json: { schema: { $ref: "#/components/schemas/HealthStatus" } } } }
+        "200":
+          {
+            description: Healthy,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/HealthStatus" } },
+              },
+          }
   /readyz:
     get:
       operationId: readinessCheck
       tags: [health]
       security: []
-      responses: { "200": { description: Ready, content: { application/json: { schema: { $ref: "#/components/schemas/HealthStatus" } } } }, "503": { $ref: "#/components/responses/ApiError" } }
+      responses:
+        {
+          "200":
+            {
+              description: Ready,
+              content:
+                {
+                  application/json:
+                    { schema: { $ref: "#/components/schemas/HealthStatus" } },
+                },
+            },
+          "503": { $ref: "#/components/responses/ApiError" },
+        }
   /batches/import:
     post:
       operationId: importBatch
       tags: [batches]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ImportBatchRequest" } } } }
-      responses: { "201": { description: Imported or replayed, content: { application/json: { schema: { $ref: "#/components/schemas/ImportBatchResult" } } } }, "400": { $ref: "#/components/responses/ApiError" }, "401": { $ref: "#/components/responses/ApiError" }, "403": { $ref: "#/components/responses/ApiError" }, "409": { $ref: "#/components/responses/ApiError" }, "413": { $ref: "#/components/responses/ApiError" }, "415": { $ref: "#/components/responses/ApiError" }, "422": { $ref: "#/components/responses/ApiError" } }
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                { schema: { $ref: "#/components/schemas/ImportBatchRequest" } },
+            },
+        }
+      responses:
+        {
+          "201":
+            {
+              description: Imported or replayed,
+              content:
+                {
+                  application/json:
+                    {
+                      schema:
+                        { $ref: "#/components/schemas/ImportBatchResult" },
+                    },
+                },
+            },
+          "400": { $ref: "#/components/responses/ApiError" },
+          "401": { $ref: "#/components/responses/ApiError" },
+          "403": { $ref: "#/components/responses/ApiError" },
+          "409": { $ref: "#/components/responses/ApiError" },
+          "413": { $ref: "#/components/responses/ApiError" },
+          "415": { $ref: "#/components/responses/ApiError" },
+          "422": { $ref: "#/components/responses/ApiError" },
+        }
   /batches:
     get:
       operationId: listBatches
       tags: [batches]
-      responses: { "200": { description: Available batches, content: { application/json: { schema: { type: object, required: [batches], properties: { batches: { type: array, items: { $ref: "#/components/schemas/Batch" } } } } } } }, "401": { $ref: "#/components/responses/ApiError" } }
+      responses:
+        {
+          "200":
+            {
+              description: Available batches,
+              content:
+                {
+                  application/json:
+                    {
+                      schema:
+                        {
+                          type: object,
+                          required: [batches],
+                          properties:
+                            {
+                              batches:
+                                {
+                                  type: array,
+                                  items: { $ref: "#/components/schemas/Batch" },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+          "401": { $ref: "#/components/responses/ApiError" },
+        }
   /batches/{batchId}:
     parameters: [{ $ref: "#/components/parameters/BatchId" }]
     get:
       operationId: getBatch
       tags: [batches]
-      responses: { "200": { description: Batch, content: { application/json: { schema: { $ref: "#/components/schemas/Batch" } } } }, "404": { $ref: "#/components/responses/ApiError" } }
+      responses:
+        {
+          "200":
+            {
+              description: Batch,
+              content:
+                {
+                  application/json:
+                    { schema: { $ref: "#/components/schemas/Batch" } },
+                },
+            },
+          "404": { $ref: "#/components/responses/ApiError" },
+        }
   /batches/{batchId}/progress:
     parameters: [{ $ref: "#/components/parameters/BatchId" }]
     get:
       operationId: getBatchProgress
       tags: [batches]
-      responses: { "200": { description: Authoritative progress, content: { application/json: { schema: { $ref: "#/components/schemas/BatchProgress" } } } }, "404": { $ref: "#/components/responses/ApiError" } }
+      responses:
+        {
+          "200":
+            {
+              description: Authoritative progress,
+              content:
+                {
+                  application/json:
+                    { schema: { $ref: "#/components/schemas/BatchProgress" } },
+                },
+            },
+          "404": { $ref: "#/components/responses/ApiError" },
+        }
   /batches/{batchId}/items:
     parameters: [{ $ref: "#/components/parameters/BatchId" }]
     get:
       operationId: listBatchItems
       tags: [batches]
-      responses: { "200": { description: Batch items, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: "#/components/schemas/ListingItem" } } } } } } } }
+      responses:
+        {
+          "200":
+            {
+              description: Batch items,
+              content:
+                {
+                  application/json:
+                    {
+                      schema:
+                        {
+                          type: object,
+                          required: [items],
+                          properties:
+                            {
+                              items:
+                                {
+                                  type: array,
+                                  items:
+                                    {
+                                      $ref: "#/components/schemas/ListingItem",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        }
   /batches/{batchId}/next-item:
     parameters: [{ $ref: "#/components/parameters/BatchId" }]
     get:
       operationId: getNextPendingItem
       tags: [employee]
-      responses: { "200": { description: Next item, content: { application/json: { schema: { type: object, required: [item], properties: { item: { oneOf: [{ $ref: "#/components/schemas/ListingItem" }, { type: "null" }] } } } } } } }
+      responses:
+        {
+          "200":
+            {
+              description: Next item,
+              content:
+                {
+                  application/json:
+                    {
+                      schema:
+                        {
+                          type: object,
+                          required: [item],
+                          properties:
+                            {
+                              item:
+                                {
+                                  oneOf:
+                                    [
+                                      {
+                                        $ref: "#/components/schemas/ListingItem",
+                                      },
+                                      { type: "null" },
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        }
   /items/{itemId}:
     parameters: [{ $ref: "#/components/parameters/ItemId" }]
     get:
       operationId: getItem
       tags: [employee]
-      responses: { "200": { description: Item and actor draft, content: { application/json: { schema: { $ref: "#/components/schemas/ListingItem" } } } }, "404": { $ref: "#/components/responses/ApiError" } }
+      responses:
+        {
+          "200":
+            {
+              description: Item and actor draft,
+              content:
+                {
+                  application/json:
+                    { schema: { $ref: "#/components/schemas/ListingItem" } },
+                },
+            },
+          "404": { $ref: "#/components/responses/ApiError" },
+        }
   /items/{itemId}/draft:
     parameters: [{ $ref: "#/components/parameters/ItemId" }]
     put:
       operationId: saveItemDraft
       tags: [employee]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SaveDraftRequest" } } } }
-      responses: { "200": { description: Draft saved, content: { application/json: { schema: { $ref: "#/components/schemas/DraftWriteResponse" } } } }, "400": { $ref: "#/components/responses/ApiError" }, "403": { $ref: "#/components/responses/ApiError" }, "404": { $ref: "#/components/responses/ApiError" }, "409": { $ref: "#/components/responses/ApiError" } }
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                { schema: { $ref: "#/components/schemas/SaveDraftRequest" } },
+            },
+        }
+      responses:
+        {
+          "200":
+            {
+              description: Draft saved,
+              content:
+                {
+                  application/json:
+                    {
+                      schema:
+                        { $ref: "#/components/schemas/DraftWriteResponse" },
+                    },
+                },
+            },
+          "400": { $ref: "#/components/responses/ApiError" },
+          "403": { $ref: "#/components/responses/ApiError" },
+          "404": { $ref: "#/components/responses/ApiError" },
+          "409": { $ref: "#/components/responses/ApiError" },
+        }
   /items/{itemId}/answer:
-    parameters: [{ $ref: "#/components/parameters/ItemId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
+    parameters:
+      [
+        { $ref: "#/components/parameters/ItemId" },
+        { $ref: "#/components/parameters/IdempotencyKey" },
+      ]
     put:
       operationId: saveItemAnswer
       tags: [employee]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SaveItemRequest" } } } }
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                { schema: { $ref: "#/components/schemas/SaveItemRequest" } },
+            },
+        }
       responses:
-        "200": { description: Answer saved or replayed, content: { application/json: { schema: { $ref: "#/components/schemas/ItemWriteResponse" } } } }
+        "200":
+          {
+            description: Answer saved or replayed,
+            content:
+              {
+                application/json:
+                  {
+                    schema: { $ref: "#/components/schemas/ItemWriteResponse" },
+                  },
+              },
+          }
         "400": { $ref: "#/components/responses/ApiError" }
         "401": { $ref: "#/components/responses/ApiError" }
         "403": { $ref: "#/components/responses/ApiError" }
@@ -81,13 +304,35 @@ paths:
         "429": { $ref: "#/components/responses/ApiError" }
         "500": { $ref: "#/components/responses/ApiError" }
   /items/{itemId}/needs-review:
-    parameters: [{ $ref: "#/components/parameters/ItemId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
+    parameters:
+      [
+        { $ref: "#/components/parameters/ItemId" },
+        { $ref: "#/components/parameters/IdempotencyKey" },
+      ]
     post:
       operationId: markItemNeedsReview
       tags: [employee]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/NeedsReviewRequest" } } } }
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                { schema: { $ref: "#/components/schemas/NeedsReviewRequest" } },
+            },
+        }
       responses:
-        "200": { description: Review state saved or replayed, content: { application/json: { schema: { $ref: "#/components/schemas/ItemWriteResponse" } } } }
+        "200":
+          {
+            description: Review state saved or replayed,
+            content:
+              {
+                application/json:
+                  {
+                    schema: { $ref: "#/components/schemas/ItemWriteResponse" },
+                  },
+              },
+          }
         "400": { $ref: "#/components/responses/ApiError" }
         "401": { $ref: "#/components/responses/ApiError" }
         "403": { $ref: "#/components/responses/ApiError" }
@@ -96,6 +341,165 @@ paths:
         "422": { $ref: "#/components/responses/ApiError" }
         "429": { $ref: "#/components/responses/ApiError" }
         "500": { $ref: "#/components/responses/ApiError" }
+  /phase3/batches/import:
+    post:
+      operationId: importPhase3Batch
+      tags: [phase3]
+      requestBody:
+        required: true
+        content:
+          {
+            application/json:
+              { schema: { $ref: "#/components/schemas/ImportBatchRequest" } },
+          }
+      responses:
+        "201":
+          {
+            description: Versioned SixBit CSV imported,
+            content:
+              {
+                application/json:
+                  {
+                    schema: { $ref: "#/components/schemas/Phase3ImportResult" },
+                  },
+              },
+          }
+        "422": { $ref: "#/components/responses/ApiError" }
+  /phase3/batches/{batchId}/analyze:
+    post:
+      operationId: analyzePhase3Batch
+      tags: [phase3]
+      parameters: [{ $ref: "#/components/parameters/BatchId" }]
+      responses:
+        "200":
+          {
+            description: Deterministic analysis summary,
+            content:
+              {
+                application/json:
+                  {
+                    schema:
+                      { $ref: "#/components/schemas/Phase3AnalysisSummary" },
+                  },
+              },
+          }
+  /phase3/batches/{batchId}/work:
+    get:
+      operationId: getPhase3BatchWork
+      tags: [phase3]
+      parameters:
+        [
+          { $ref: "#/components/parameters/BatchId" },
+          {
+            name: offset,
+            in: query,
+            schema: { type: integer, minimum: 0, default: 0 },
+          },
+          {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 200, default: 100 },
+          },
+        ]
+      responses:
+        "200":
+          {
+            description: Bounded batch work page without per-item requests,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Phase3WorkPage" } },
+              },
+          }
+  /phase3/items/{itemId}/results:
+    get:
+      operationId: getPhase3Results
+      tags: [phase3]
+      parameters: [{ $ref: "#/components/parameters/ItemId" }]
+      responses:
+        "200":
+          {
+            description: "Versioned rule results, repairs, active questions, answers, and reviewer state",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Phase3Result" } },
+              },
+          }
+  /phase3/items/{itemId}/answers:
+    put:
+      operationId: answerPhase3Questions
+      tags: [phase3]
+      parameters:
+        [
+          { $ref: "#/components/parameters/ItemId" },
+          { $ref: "#/components/parameters/IdempotencyKey" },
+        ]
+      requestBody:
+        required: true
+        content:
+          {
+            application/json:
+              { schema: { $ref: "#/components/schemas/Phase3AnswersRequest" } },
+          }
+      responses:
+        "200":
+          {
+            description: Answers persisted and rules rerun,
+            content:
+              {
+                application/json:
+                  {
+                    schema:
+                      { $ref: "#/components/schemas/Phase3MutationResult" },
+                  },
+              },
+          }
+  /phase3/items/{itemId}/review:
+    put:
+      operationId: reviewPhase3Item
+      tags: [phase3]
+      parameters:
+        [
+          { $ref: "#/components/parameters/ItemId" },
+          { $ref: "#/components/parameters/IdempotencyKey" },
+        ]
+      requestBody:
+        required: true
+        content:
+          {
+            application/json:
+              { schema: { $ref: "#/components/schemas/Phase3ReviewRequest" } },
+          }
+      responses:
+        "200":
+          {
+            description: Idempotent reviewer decision,
+            content:
+              {
+                application/json:
+                  {
+                    schema:
+                      { $ref: "#/components/schemas/Phase3MutationResult" },
+                  },
+              },
+          }
+  /phase3/batches/{batchId}/export:
+    post:
+      operationId: exportPhase3Batch
+      tags: [phase3]
+      parameters: [{ $ref: "#/components/parameters/BatchId" }]
+      responses:
+        "200":
+          {
+            description: Controlled SixBit-compatible CSV with checksum and field diffs,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Phase3Export" } },
+              },
+          }
+        "409": { $ref: "#/components/responses/ApiError" }
 components:
   securitySchemes:
     bearerAuth:
@@ -103,52 +507,676 @@ components:
       scheme: bearer
       description: Production OIDC-style bearer contract. No trusted production provider is configured in Phase 1; production startup fails closed. The x-development-user adapter is nonproduction-only and is not a production authentication scheme.
   parameters:
-    ItemId: { name: itemId, in: path, required: true, schema: { type: string, format: uuid } }
-    BatchId: { name: batchId, in: path, required: true, schema: { type: string, format: uuid } }
-    IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
+    ItemId:
+      {
+        name: itemId,
+        in: path,
+        required: true,
+        schema: { type: string, format: uuid },
+      }
+    BatchId:
+      {
+        name: batchId,
+        in: path,
+        required: true,
+        schema: { type: string, format: uuid },
+      }
+    IdempotencyKey:
+      {
+        name: Idempotency-Key,
+        in: header,
+        required: true,
+        schema: { type: string, minLength: 1, maxLength: 200 },
+      }
   responses:
-    ApiError: { description: Structured API error, content: { application/json: { schema: { $ref: "#/components/schemas/ApiError" } } } }
+    ApiError:
+      {
+        description: Structured API error,
+        content:
+          {
+            application/json:
+              { schema: { $ref: "#/components/schemas/ApiError" } },
+          },
+      }
   schemas:
-    HealthStatus: { type: object, required: [status], properties: { status: { type: string } } }
-    ImportBatchRequest: { type: object, additionalProperties: false, required: [importKey, filename, mimeType, content], properties: { importKey: { type: string, minLength: 1, maxLength: 200 }, filename: { type: string, minLength: 1, maxLength: 255 }, mimeType: { type: string, minLength: 1, maxLength: 100 }, content: { type: string, minLength: 1 }, name: { type: string, minLength: 1, maxLength: 200 } } }
-    ImportBatchResult: { type: object, required: [batchId, replayed, itemCount, checksum], properties: { batchId: { type: string, format: uuid }, replayed: { type: boolean }, itemCount: { type: integer, minimum: 1 }, checksum: { type: string, pattern: "^[a-f0-9]{64}$" } } }
-    BatchProgress: { type: object, required: [totalItemCount, completedCount, reviewCount, processedCount, pendingCount, percent, complete], properties: { totalItemCount: { type: integer, minimum: 0 }, completedCount: { type: integer, minimum: 0 }, reviewCount: { type: integer, minimum: 0 }, processedCount: { type: integer, minimum: 0 }, pendingCount: { type: integer, minimum: 0 }, percent: { type: integer, minimum: 0, maximum: 100 }, complete: { type: boolean } } }
-    Batch: { type: object, additionalProperties: true, required: [id, name, status, progress], properties: { id: { type: string, format: uuid }, name: { type: string }, status: { type: string }, progress: { $ref: "#/components/schemas/BatchProgress" } } }
-    ListingItem: { type: object, additionalProperties: true, required: [id, batchId, sku, status, version, draftVersion], properties: { id: { type: string, format: uuid }, batchId: { type: string, format: uuid }, sku: { type: string }, status: { type: string }, version: { type: integer, minimum: 1 }, draftVersion: { type: integer, minimum: 0 }, draft: { oneOf: [{ $ref: "#/components/schemas/ItemDraft" }, { type: "null" }] } } }
-    DraftWriteResponse: { type: object, required: [itemId, itemVersion, draftVersion, status], properties: { itemId: { type: string, format: uuid }, itemVersion: { type: integer, minimum: 1 }, draftVersion: { type: integer, minimum: 1 }, status: { type: string, enum: [editing] } } }
+    Phase3ImportResult:
+      {
+        type: object,
+        required: [batchId, replayed, itemCount, checksum, schemaVersion],
+        properties:
+          {
+            batchId: { type: string, format: uuid },
+            replayed: { type: boolean },
+            itemCount: { type: integer, minimum: 1 },
+            checksum: { type: string },
+            schemaVersion: { type: string },
+          },
+      }
+    Phase3AnalysisSummary:
+      {
+        type: object,
+        required: [batchId, ruleVersion, total, pass, verify, exportReady],
+        properties:
+          {
+            batchId: { type: string, format: uuid },
+            ruleVersion: { type: string },
+            total: { type: integer },
+            pass: { type: integer },
+            verify: { type: integer },
+            exportReady: { type: integer },
+          },
+      }
+    Phase3Export:
+      {
+        type: object,
+        additionalProperties: false,
+        required:
+          [
+            exportId,
+            checksum,
+            rowCount,
+            schemaVersion,
+            ruleVersion,
+            content,
+            fieldDiffs,
+          ],
+        properties:
+          {
+            exportId: { type: string, format: uuid },
+            checksum: { type: string },
+            rowCount: { type: integer },
+            schemaVersion: { type: string },
+            ruleVersion: { type: string },
+            content: { type: string },
+            fieldDiffs:
+              {
+                type: array,
+                items: { $ref: "#/components/schemas/Phase3FieldDiff" },
+              },
+          },
+      }
+    Phase3FieldDiff:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [itemId, field, before, after],
+        properties:
+          {
+            itemId: { type: string, format: uuid },
+            field: { type: string, minLength: 1 },
+            before: { type: string },
+            after: { type: string },
+          },
+      }
+    Phase3Primitive:
+      {
+        oneOf:
+          [
+            { type: string, maxLength: 2000 },
+            { type: number },
+            { type: boolean },
+            { type: "null" },
+          ],
+      }
+    Phase3NormalizedValues:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [sourceDatabase, itemId, inventoryId, sku, title, description, storageLocation, qtyToList, qtyUncommitted, qtyCurrentlyListed, qtySold, stockTotal, fixedPrice, itemStatus, itemStatusId, condition, r2Code, checkCount, cfCheck, lotSize, totalPieces, priceEachPiece],
+        properties:
+          {
+            sourceDatabase: { type: string }, itemId: { type: string }, inventoryId: { type: string }, sku: { type: string },
+            title: { type: string }, description: { type: string }, storageLocation: { type: string },
+            qtyToList: { oneOf: [{ type: integer }, { type: "null" }] },
+            qtyUncommitted: { oneOf: [{ type: integer }, { type: "null" }] },
+            qtyCurrentlyListed: { oneOf: [{ type: integer }, { type: "null" }] },
+            qtySold: { oneOf: [{ type: integer }, { type: "null" }] },
+            stockTotal: { oneOf: [{ type: integer }, { type: "null" }] },
+            fixedPrice: { type: string }, itemStatus: { type: string }, itemStatusId: { type: string }, condition: { type: string }, r2Code: { type: string },
+            checkCount: { oneOf: [{ type: boolean }, { type: "null" }] }, cfCheck: { type: string },
+            lotSize: { oneOf: [{ type: integer }, { type: "null" }] },
+            totalPieces: { oneOf: [{ type: integer }, { type: "null" }] },
+            priceEachPiece: { oneOf: [{ type: number }, { type: "null" }] },
+          },
+      }
+    Phase3Repair:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [field, before, after, reason, algorithmVersion],
+        properties:
+          {
+            field: { type: string },
+            before: { $ref: "#/components/schemas/Phase3Primitive" },
+            after: { $ref: "#/components/schemas/Phase3Primitive" },
+            reason: { type: string },
+            algorithmVersion: { type: string },
+          },
+      }
+    Phase3RuleResult:
+      {
+        type: object,
+        additionalProperties: false,
+        required:
+          [
+            ruleId,
+            ruleVersion,
+            category,
+            outcome,
+            severity,
+            field,
+            currentValue,
+            reason,
+            employeeRequired,
+            reviewerRequired,
+          ],
+        properties:
+          {
+            ruleId: { type: string },
+            ruleVersion: { type: string },
+            category: { type: string },
+            outcome:
+              {
+                type: string,
+                enum: [PASS, FAIL, VERIFY, PASS_EMPLOYEE_VERIFIED],
+              },
+            severity: { type: string, enum: [info, warning, error] },
+            field: { oneOf: [{ type: string }, { type: "null" }] },
+            currentValue: { $ref: "#/components/schemas/Phase3Primitive" },
+            reason: { type: string },
+            employeeRequired: { type: boolean },
+            reviewerRequired: { type: boolean },
+            resolutionClass:
+              {
+                type: string,
+                enum:
+                  [
+                    EMPLOYEE_RESOLVABLE,
+                    REVIEWER_RESOLVABLE,
+                    NON_OVERRIDABLE_HARD_INVALID,
+                  ],
+              },
+            safeRepair: { $ref: "#/components/schemas/Phase3Repair" },
+          },
+      }
+    Phase3QuestionConfiguration:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [id, ruleId, type, label, required, displayOrder],
+        properties:
+          {
+            id: { type: string }, ruleId: { type: string },
+            type: { type: string, enum: [boolean, number, text, select] },
+            label: { type: string }, required: { type: boolean, enum: [true] },
+            displayOrder: { type: integer }, shortcutPosition: { type: integer },
+            options: { type: array, items: { type: string }, minItems: 1 },
+            min: { type: number }, max: { type: number },
+            minLength: { type: integer, minimum: 0 }, maxLength: { type: integer, minimum: 1 },
+          },
+      }
+    Phase3QuestionAnswer:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [value],
+        properties: { value: { $ref: "#/components/schemas/Phase3Primitive" } },
+      }
+    Phase3Question:
+      {
+        type: object,
+        additionalProperties: false,
+        required:
+          [
+            id,
+            itemId,
+            analysisId,
+            ruleVersion,
+            ruleId,
+            displayOrder,
+            lifecycleStatus,
+            configuration,
+            createdAt,
+          ],
+        properties:
+          {
+            id: { type: string },
+            itemId: { type: string, format: uuid },
+            analysisId: { type: string, format: uuid },
+            ruleVersion: { type: string },
+            ruleId: { type: string },
+            displayOrder: { type: integer },
+            lifecycleStatus:
+              { type: string, enum: [active, answered, resolved, superseded] },
+            configuration:
+              { $ref: "#/components/schemas/Phase3QuestionConfiguration" },
+            answer:
+              {
+                oneOf:
+                  [
+                    { $ref: "#/components/schemas/Phase3QuestionAnswer" },
+                    { type: "null" },
+                  ],
+              },
+            answeredBy: { oneOf: [{ type: string }, { type: "null" }] },
+            answeredAt:
+              {
+                oneOf: [{ type: string, format: date-time }, { type: "null" }],
+              },
+            createdAt: { type: string, format: date-time },
+          },
+      }
+    Phase3Result:
+      {
+        type: object,
+        additionalProperties: false,
+        required:
+          [
+            id,
+            itemId,
+            ruleVersion,
+            normalizedValues,
+            results,
+            repairs,
+            employeeAnswers,
+            exportReady,
+            version,
+            createdAt,
+            updatedAt,
+            questions,
+          ],
+        properties:
+          {
+            id: { type: string, format: uuid },
+            itemId: { type: string, format: uuid },
+            ruleVersion: { type: string },
+            normalizedValues:
+              { $ref: "#/components/schemas/Phase3NormalizedValues" },
+            results:
+              {
+                type: array,
+                items: { $ref: "#/components/schemas/Phase3RuleResult" },
+              },
+            repairs:
+              {
+                type: array,
+                items: { $ref: "#/components/schemas/Phase3Repair" },
+              },
+            employeeAnswers:
+              {
+                type: object,
+                additionalProperties:
+                  { $ref: "#/components/schemas/Phase3Primitive" },
+              },
+            reviewerDecision:
+              {
+                oneOf:
+                  [
+                    { $ref: "#/components/schemas/Phase3ReviewerDecision" },
+                    { type: "null" },
+                  ],
+              },
+            exportReady: { type: boolean },
+            version: { type: integer, minimum: 1 },
+            createdAt: { type: string, format: date-time },
+            updatedAt: { type: string, format: date-time },
+            questions:
+              {
+                type: array,
+                items: { $ref: "#/components/schemas/Phase3Question" },
+              },
+          },
+      }
+    Phase3WorkPage:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [batchId, offset, limit, results],
+        properties:
+          {
+            batchId: { type: string, format: uuid },
+            offset: { type: integer },
+            limit: { type: integer },
+            results:
+              {
+                type: array,
+                items:
+                  {
+                    type: object,
+                    additionalProperties: false,
+                    required: [item, result],
+                    properties:
+                      {
+                        item: { $ref: "#/components/schemas/ListingItem" },
+                        result: { $ref: "#/components/schemas/Phase3Result" },
+                      },
+                  },
+              },
+          },
+      }
+    Phase3MutationResult:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [itemId, replayed, exportReady],
+        properties:
+          {
+            itemId: { type: string, format: uuid },
+            replayed: { type: boolean },
+            exportReady: { type: boolean },
+          },
+      }
+    Phase3ReviewerDecision:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [status, reason, analysisVersion, resolvedRuleIds, evidence],
+        properties:
+          {
+            status: { type: string, enum: [approved, unresolved] },
+            reason: { type: string, minLength: 1, maxLength: 2000 },
+            analysisVersion: { type: integer, minimum: 1 },
+            resolvedRuleIds: { type: array, uniqueItems: true, items: { type: string } },
+            evidence: { type: object, additionalProperties: { type: string, minLength: 1, maxLength: 2000 } },
+          },
+      }
+    Phase3AnswersRequest:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [answers],
+        properties:
+          {
+            answers:
+              {
+                type: object,
+                minProperties: 1,
+                maxProperties: 50,
+                additionalProperties:
+                  {
+                    oneOf:
+                      [
+                        { type: string, maxLength: 2000 },
+                        { type: integer },
+                        { type: boolean },
+                      ],
+                  },
+              },
+          },
+      }
+    Phase3ReviewRequest:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [status, reason, analysisVersion, resolvedRuleIds, evidence],
+        properties:
+          {
+            status: { type: string, enum: [approved, unresolved] },
+            reason: { type: string, minLength: 1, maxLength: 2000 },
+            analysisVersion: { type: integer, minimum: 1 },
+            resolvedRuleIds:
+              { type: array, uniqueItems: true, items: { type: string } },
+            evidence:
+              {
+                type: object,
+                additionalProperties:
+                  { type: string, minLength: 1, maxLength: 2000 },
+              },
+          },
+      }
+    HealthStatus:
+      {
+        type: object,
+        required: [status],
+        properties: { status: { type: string } },
+      }
+    ImportBatchRequest:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [importKey, filename, mimeType, content],
+        properties:
+          {
+            importKey: { type: string, minLength: 1, maxLength: 200 },
+            filename: { type: string, minLength: 1, maxLength: 255 },
+            mimeType: { type: string, minLength: 1, maxLength: 100 },
+            content: { type: string, minLength: 1 },
+            name: { type: string, minLength: 1, maxLength: 200 },
+          },
+      }
+    ImportBatchResult:
+      {
+        type: object,
+        required: [batchId, replayed, itemCount, checksum],
+        properties:
+          {
+            batchId: { type: string, format: uuid },
+            replayed: { type: boolean },
+            itemCount: { type: integer, minimum: 1 },
+            checksum: { type: string, pattern: "^[a-f0-9]{64}$" },
+          },
+      }
+    BatchProgress:
+      {
+        type: object,
+        required:
+          [
+            totalItemCount,
+            completedCount,
+            reviewCount,
+            processedCount,
+            pendingCount,
+            percent,
+            complete,
+          ],
+        properties:
+          {
+            totalItemCount: { type: integer, minimum: 0 },
+            completedCount: { type: integer, minimum: 0 },
+            reviewCount: { type: integer, minimum: 0 },
+            processedCount: { type: integer, minimum: 0 },
+            pendingCount: { type: integer, minimum: 0 },
+            percent: { type: integer, minimum: 0, maximum: 100 },
+            complete: { type: boolean },
+          },
+      }
+    Batch:
+      {
+        type: object,
+        additionalProperties: true,
+        required: [id, name, status, progress],
+        properties:
+          {
+            id: { type: string, format: uuid },
+            name: { type: string },
+            status: { type: string },
+            progress: { $ref: "#/components/schemas/BatchProgress" },
+          },
+      }
+    ListingItem:
+      {
+        type: object,
+        additionalProperties: true,
+        required: [id, batchId, sku, status, version, draftVersion],
+        properties:
+          {
+            id: { type: string, format: uuid },
+            batchId: { type: string, format: uuid },
+            sku: { type: string },
+            status: { type: string },
+            version: { type: integer, minimum: 1 },
+            draftVersion: { type: integer, minimum: 0 },
+            draft:
+              {
+                oneOf:
+                  [
+                    { $ref: "#/components/schemas/ItemDraft" },
+                    { type: "null" },
+                  ],
+              },
+          },
+      }
+    DraftWriteResponse:
+      {
+        type: object,
+        required: [itemId, itemVersion, draftVersion, status],
+        properties:
+          {
+            itemId: { type: string, format: uuid },
+            itemVersion: { type: integer, minimum: 1 },
+            draftVersion: { type: integer, minimum: 1 },
+            status: { type: string, enum: [editing] },
+          },
+      }
     ConditionCode: { type: string, enum: [A, B, C, D] }
     IncludedItemsAnswer:
       type: object
       required: [selectedQuestionIds, explicitlyNone]
-      properties: { selectedQuestionIds: { type: array, uniqueItems: true, items: { type: string } }, explicitlyNone: { type: boolean } }
+      properties:
+        {
+          selectedQuestionIds:
+            { type: array, uniqueItems: true, items: { type: string } },
+          explicitlyNone: { type: boolean },
+        }
     ItemDraft:
       type: object
-      required: [itemId, itemVersion, includedItems, conditionCode, fieldValues, notes, employeeId, status, createdAt, updatedAt]
+      required:
+        [
+          itemId,
+          itemVersion,
+          includedItems,
+          conditionCode,
+          fieldValues,
+          notes,
+          employeeId,
+          status,
+          createdAt,
+          updatedAt,
+        ]
       properties:
         itemId: { type: string, format: uuid }
         itemVersion: { type: integer, minimum: 1 }
         includedItems: { $ref: "#/components/schemas/IncludedItemsAnswer" }
-        conditionCode: { oneOf: [{ $ref: "#/components/schemas/ConditionCode" }, { type: "null" }] }
-        fieldValues: { type: object, additionalProperties: { oneOf: [{ type: string }, { type: number }, { type: boolean }, { type: "null" }] } }
+        conditionCode:
+          {
+            oneOf:
+              [
+                { $ref: "#/components/schemas/ConditionCode" },
+                { type: "null" },
+              ],
+          }
+        fieldValues:
+          {
+            type: object,
+            additionalProperties:
+              {
+                oneOf:
+                  [
+                    { type: string },
+                    { type: number },
+                    { type: boolean },
+                    { type: "null" },
+                  ],
+              },
+          }
         notes: { type: string }
         employeeId: { type: string, minLength: 1 }
-        status: { type: string, enum: [new, editing, restored, submitted, needs_review] }
+        status:
+          {
+            type: string,
+            enum: [new, editing, restored, submitted, needs_review],
+          }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-    SaveItemRequest: { type: object, required: [draft], properties: { draft: { $ref: "#/components/schemas/ItemDraft" } } }
-    SaveDraftRequest: { type: object, required: [draft, expectedDraftVersion], properties: { draft: { $ref: "#/components/schemas/ItemDraft" }, expectedDraftVersion: { type: integer, minimum: 0 } } }
+    SaveItemRequest:
+      {
+        type: object,
+        required: [draft],
+        properties: { draft: { $ref: "#/components/schemas/ItemDraft" } },
+      }
+    SaveDraftRequest:
+      {
+        type: object,
+        required: [draft, expectedDraftVersion],
+        properties:
+          {
+            draft: { $ref: "#/components/schemas/ItemDraft" },
+            expectedDraftVersion: { type: integer, minimum: 0 },
+          },
+      }
     NeedsReviewRequest:
       type: object
       required: [draft, reason]
       properties:
         draft: { $ref: "#/components/schemas/ItemDraft" }
-        reason: { type: object, required: [code], properties: { code: { type: string, enum: [inventory_discrepancy, item_damage, identity_uncertain, missing_information, workflow_exception, other] }, note: { type: string, maxLength: 2000 } } }
+        reason:
+          {
+            type: object,
+            required: [code],
+            properties:
+              {
+                code:
+                  {
+                    type: string,
+                    enum:
+                      [
+                        inventory_discrepancy,
+                        item_damage,
+                        identity_uncertain,
+                        missing_information,
+                        workflow_exception,
+                        other,
+                      ],
+                  },
+                note: { type: string, maxLength: 2000 },
+              },
+          }
     ItemWriteResponse:
       type: object
       required: [itemId, itemVersion, status, nextItemId, replayed]
-      properties: { itemId: { type: string, format: uuid }, itemVersion: { type: integer, minimum: 1 }, status: { type: string, enum: [completed, needs_review] }, nextItemId: { oneOf: [{ type: string, format: uuid }, { type: "null" }] }, replayed: { type: boolean } }
+      properties:
+        {
+          itemId: { type: string, format: uuid },
+          itemVersion: { type: integer, minimum: 1 },
+          status: { type: string, enum: [completed, needs_review] },
+          nextItemId:
+            { oneOf: [{ type: string, format: uuid }, { type: "null" }] },
+          replayed: { type: boolean },
+        }
     ApiError:
       type: object
       required: [code, message, correlationId]
-      properties: { code: { type: string, enum: [VALIDATION_ERROR, INVALID_CSV, INVALID_ENCODING, INVALID_FILE_TYPE, UPLOAD_TOO_LARGE, ROW_LIMIT_EXCEEDED, UNEXPECTED_HEADERS, UNSUPPORTED_SCHEMA_VERSION, CONFLICT, SYSTEM_ERROR, AI_PROCESSING_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, RATE_LIMITED] }, message: { type: string }, correlationId: { type: string, format: uuid }, fieldErrors: { type: object, additionalProperties: { type: array, items: { type: string } } }, currentVersion: { type: integer } }
+      properties:
+        {
+          code:
+            {
+              type: string,
+              enum:
+                [
+                  VALIDATION_ERROR,
+                  INVALID_CSV,
+                  INVALID_ENCODING,
+                  INVALID_FILE_TYPE,
+                  UPLOAD_TOO_LARGE,
+                  ROW_LIMIT_EXCEEDED,
+                  UNEXPECTED_HEADERS,
+                  UNSUPPORTED_SCHEMA_VERSION,
+                  CONFLICT,
+                  SYSTEM_ERROR,
+                  AI_PROCESSING_ERROR,
+                  UNAUTHORIZED,
+                  FORBIDDEN,
+                  NOT_FOUND,
+                  RATE_LIMITED,
+                ],
+            },
+          message: { type: string },
+          correlationId: { type: string, format: uuid },
+          fieldErrors:
+            {
+              type: object,
+              additionalProperties: { type: array, items: { type: string } },
+            },
+          currentVersion: { type: integer },
+        }
 security: [{ bearerAuth: [] }]
